@@ -71,7 +71,7 @@ jobs:
         run: npm run prisma:deploy --workspace=@orbit/api
 
       - name: Seed test database roles
-        run: npm run db:seed --workspace=@orbit/api
+        run: npm exec --workspace=@orbit/api prisma db seed
 
       - name: Lint
         run: npm run lint
@@ -138,7 +138,7 @@ jobs:
         run: npm run prisma:deploy --workspace=@orbit/api
 
       - name: Seed test database roles
-        run: npm run db:seed --workspace=@orbit/api
+        run: npm exec --workspace=@orbit/api prisma db seed
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
@@ -166,7 +166,7 @@ jobs:
         run: docker compose --env-file .env.production.example config --quiet
 
       - name: Build production images
-        run: docker compose --env-file .env.production.example build api web migrate seed
+        run: COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file .env.production.example build api web migrate seed
 
   secrets:
     name: Secret scanning
