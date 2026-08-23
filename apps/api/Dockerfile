@@ -2,7 +2,11 @@
 
 FROM node:22.22.0-bookworm-slim AS dependencies
 WORKDIR /workspace
-ENV HUSKY=0
+# Prisma loads prisma.config.ts during image compilation. This is a non-secret
+# placeholder used only by `prisma generate`; runtime services override it via
+# docker-compose with the real DATABASE_URL.
+ENV HUSKY=0 \
+    DATABASE_URL=postgresql://orbit:orbit@localhost:5432/orbit?schema=public
 RUN apt-get update \
     && apt-get install -y --no-install-recommends openssl \
     && rm -rf /var/lib/apt/lists/*
