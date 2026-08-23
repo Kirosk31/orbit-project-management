@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:22.22.0-bookworm-slim AS dependencies
+FROM node:26.7.0-bookworm-slim AS dependencies
 WORKDIR /workspace
 # Prisma loads prisma.config.ts during image compilation. This is a non-secret
 # placeholder used only by `prisma generate`; runtime services override it via
@@ -30,7 +30,7 @@ RUN npm run build --workspace=@orbit/shared && npm run build --workspace=@orbit/
 FROM dependencies AS production-dependencies
 RUN npm prune --omit=dev
 
-FROM node:22.22.0-bookworm-slim AS api
+FROM node:26.7.0-bookworm-slim AS api
 WORKDIR /workspace
 ENV NODE_ENV=production \
     PORT=4000
