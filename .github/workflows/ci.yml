@@ -67,6 +67,9 @@ jobs:
       - name: Generate Prisma client
         run: npm run prisma:generate --workspace=@orbit/api
 
+      - name: Build shared package for Prisma seed
+        run: npm run build --workspace=@orbit/shared
+
       - name: Apply test database migrations
         run: npm run prisma:deploy --workspace=@orbit/api
 
@@ -133,6 +136,9 @@ jobs:
 
       - name: Generate Prisma client
         run: npm run prisma:generate --workspace=@orbit/api
+
+      - name: Build shared package for Prisma seed
+        run: npm run build --workspace=@orbit/shared
 
       - name: Apply test database migrations
         run: npm run prisma:deploy --workspace=@orbit/api
