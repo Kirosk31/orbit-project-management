@@ -23,7 +23,7 @@ ENV VITE_API_URL=${VITE_API_URL} \
     VITE_APP_NAME=${VITE_APP_NAME}
 RUN npm run build --workspace=@orbit/shared && npm run build --workspace=@orbit/web
 
-FROM nginxinc/nginx-unprivileged:1.30.4-alpine AS web
+FROM nginxinc/nginx-unprivileged:1.31.4-alpine AS web
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
 COPY deploy/security-headers.conf /etc/nginx/security-headers.conf
 COPY --from=builder /workspace/apps/web/dist /usr/share/nginx/html
