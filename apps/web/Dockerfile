@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:22.22.0-bookworm-slim AS builder
+FROM node:26.7.0-bookworm-slim AS builder
 WORKDIR /workspace
 ENV HUSKY=0
 
