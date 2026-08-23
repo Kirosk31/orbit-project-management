@@ -25,7 +25,16 @@ export class LocalStorageService implements StorageService {
 
   private resolveCandidate(key: string): { candidate: string; root: string } {
     const root = path.resolve(this.rootDir)
-    if (!key || path.isAbsolute(key) || key.includes('\0')) {
+    // Storage keys are portable opaque identifiers. Reject both the host
+    // platform's separators and Windows-style drive paths so a key cannot
+    // bypass this check when the API runs on a different operating system.
+    if (
+      !key ||
+      path.isAbsolute(key) ||
+      key.includes('\0') ||
+      key.includes('\\') ||
+      /^[a-zA-Z]:/.test(key)
+    ) {
       throw badRequest('Invalid storage key')
     }
 

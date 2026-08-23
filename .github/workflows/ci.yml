@@ -70,6 +70,9 @@ jobs:
       - name: Apply test database migrations
         run: npm run prisma:deploy --workspace=@orbit/api
 
+      - name: Seed test database roles
+        run: npm run db:seed --workspace=@orbit/api
+
       - name: Lint
         run: npm run lint
 
@@ -133,6 +136,9 @@ jobs:
 
       - name: Apply test database migrations
         run: npm run prisma:deploy --workspace=@orbit/api
+
+      - name: Seed test database roles
+        run: npm run db:seed --workspace=@orbit/api
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
