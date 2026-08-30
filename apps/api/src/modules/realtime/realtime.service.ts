@@ -7,6 +7,7 @@ import type { Logger } from '../../core/logger/logger.js'
 import { verifyAccessToken } from '../../core/security/tokens.js'
 import type { RealtimeAuthorizer } from './realtime.authorization.js'
 import type { RealtimePublisher } from './realtime.publisher.js'
+import type { AccessSessionValidator } from '../../shared/http/middleware/authenticate.js'
 
 const MAX_PROJECT_SUBSCRIPTIONS_PER_SOCKET = 100
 const MAX_SUBSCRIPTION_EVENTS_PER_MINUTE = 120
@@ -25,6 +26,7 @@ export class RealtimeService implements RealtimePublisher {
     config: AppConfig,
     logger: Logger,
     authorizer: RealtimeAuthorizer,
+    sessionValidator: AccessSessionValidator,
     adapter?: Parameters<SocketIoServer['adapter']>[0],
   ) {
     this.io = new SocketIoServer(server, {
@@ -44,7 +46,7 @@ export class RealtimeService implements RealtimePublisher {
     })
     if (adapter) this.io.adapter(adapter)
 
-    this.io.use((socket, next) => {
+    this.io.use(async (socket, next) => {
       const token = socket.handshake.auth?.token
 
       if (typeof token !== 'string' || !token) {
@@ -54,8 +56,13 @@ export class RealtimeService implements RealtimePublisher {
 
       try {
         const payload = verifyAccessToken(token, config.env.JWT_ACCESS_SECRET)
+        if (!(await sessionValidator.isSessionActive(payload.sub, payload.sessionId))) {
+          next(new Error('Invalid or expired session'))
+          return
+        }
         socket.data.userId = payload.sub
         socket.data.sessionId = payload.sessionId
+        socket.data.tokenExpiresAt = payload.expiresAt * 1_000
         next()
       } catch (error) {
         next(error instanceof Error ? error : new Error('Unauthorized'))
@@ -64,8 +71,16 @@ export class RealtimeService implements RealtimePublisher {
 
     this.io.on('connection', (socket) => {
       const userId = socket.data.userId as string
+      const sessionId = socket.data.sessionId as string
+      const tokenExpiresAt = socket.data.tokenExpiresAt as number
       logger.info({ userId }, 'realtime client connected')
       socket.join(this.userRoom(userId))
+      socket.join(this.sessionRoom(sessionId))
+
+      const tokenExpiryTimer = setTimeout(
+        () => socket.disconnect(true),
+        Math.max(0, tokenExpiresAt - Date.now()),
+      )
 
       const projectSubscriptions = new Set<string>()
       let eventWindowStartedAt = Date.now()
@@ -154,6 +169,7 @@ export class RealtimeService implements RealtimePublisher {
       )
 
       socket.on('disconnect', () => {
+        clearTimeout(tokenExpiryTimer)
         void (async () => {
           for (const projectId of projectSubscriptions) {
             await this.publishOfflineWhenAbsent(projectId, userId)
@@ -175,12 +191,24 @@ export class RealtimeService implements RealtimePublisher {
     this.io.to(this.projectRoom(projectId)).emit(event, payload)
   }
 
+  disconnectUser(userId: string): void {
+    this.io.in(this.userRoom(userId)).disconnectSockets(true)
+  }
+
+  disconnectSession(sessionId: string): void {
+    this.io.in(this.sessionRoom(sessionId)).disconnectSockets(true)
+  }
+
   private userRoom(userId: string): string {
     return `user:${userId}`
   }
 
   private projectRoom(projectId: string): string {
     return `project:${projectId}`
+  }
+
+  private sessionRoom(sessionId: string): string {
+    return `session:${sessionId}`
   }
 
   private publishPresence(projectId: string, userId: string, state: PresenceEvent['state']): void {

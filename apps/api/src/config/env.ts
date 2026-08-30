@@ -1,5 +1,6 @@
 import 'dotenv/config'
 import { z } from 'zod'
+import { PLAN_KEYS, type PlanKey } from '@orbit/shared'
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -48,6 +49,11 @@ const envSchema = z.object({
   EMAIL_VERIFICATION_TTL_HOURS: z.coerce.number().int().min(1).default(24),
   PASSWORD_RESET_TTL_HOURS: z.coerce.number().int().min(1).default(1),
   WEB_APP_URL: z.url().default('http://localhost:5173'),
+  BILLING_ENABLED: z.enum(['true', 'false']).optional().default('false'),
+  BILLING_DEFAULT_PLAN_KEY: z
+    .enum(PLAN_KEYS as [PlanKey, ...PlanKey[]])
+    .optional()
+    .default('FREE'),
 })
 
 export type Env = z.infer<typeof envSchema>

@@ -17,6 +17,7 @@ describe('access tokens', () => {
       sub: 'user-1',
       sessionId: 'session-1',
       type: 'access',
+      expiresAt: expect.any(Number),
     })
   })
 

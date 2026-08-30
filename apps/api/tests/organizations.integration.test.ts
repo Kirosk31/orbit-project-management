@@ -58,6 +58,7 @@ describeDb('organizations API', () => {
   let ownerToken: string
   let memberToken: string
   let outsiderToken: string
+  let ownerUserId: string
   let memberUserId: string
   let teamId: string
   let invitationId: string
@@ -94,6 +95,7 @@ describeDb('organizations API', () => {
     const member = await register(TEST_EMAILS[1]!, 'Org Member')
     const outsider = await register(TEST_EMAILS[2]!, 'Org Outsider')
     ownerToken = owner.token
+    ownerUserId = owner.userId
     memberToken = member.token
     outsiderToken = outsider.token
     memberUserId = member.userId
@@ -344,6 +346,41 @@ describeDb('organizations API', () => {
 
     expect(promoted.status).toBe(200)
     expect(promoted.body.data).toMatchObject({ roleKey: 'ADMIN', roleName: 'ADMIN' })
+
+    const ownerRole = await app.prisma.role.findFirstOrThrow({
+      where: { orgId: null, key: 'OWNER' },
+    })
+    const selfEscalation = await request(app.app)
+      .patch(`/api/v1/organizations/orbit-test-workspace/members/${memberUserId}`)
+      .set('Authorization', `Bearer ${memberToken}`)
+      .set(await csrfHeaders())
+      .send({ roleId: ownerRole.id })
+    expect(selfEscalation.status).toBe(403)
+
+    const ownerInvitation = await request(app.app)
+      .post('/api/v1/organizations/orbit-test-workspace/invitations')
+      .set('Authorization', `Bearer ${memberToken}`)
+      .set(await csrfHeaders())
+      .send({ email: TEST_EMAILS[2], roleId: ownerRole.id })
+    expect(ownerInvitation.status).toBe(403)
+
+    const memberRecord = await app.prisma.organizationMember.findFirstOrThrow({
+      where: { org: { slug: 'orbit-test-workspace' }, userId: memberUserId },
+    })
+    await app.prisma.organizationMember.update({
+      where: { id: memberRecord.id },
+      data: { roleId: ownerRole.id },
+    })
+
+    const legacyEscalation = await request(app.app)
+      .get('/api/v1/organizations/orbit-test-workspace')
+      .set('Authorization', `Bearer ${memberToken}`)
+    expect(legacyEscalation.status).toBe(404)
+
+    await app.prisma.organizationMember.update({
+      where: { id: memberRecord.id },
+      data: { roleId: adminRole.id },
+    })
   })
 
   it('protects the owner membership', async () => {
@@ -363,6 +400,40 @@ describeDb('organizations API', () => {
       .set('Authorization', `Bearer ${ownerToken}`)
       .set(await csrfHeaders())
     expect(remove.status).toBe(403)
+  })
+
+  it('transfers ownership atomically and only lets the current owner transfer it back', async () => {
+    const transferred = await request(app.app)
+      .post('/api/v1/organizations/orbit-test-workspace/transfer-ownership')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .set(await csrfHeaders())
+      .send({ userId: memberUserId })
+    expect(transferred.status).toBe(200)
+    expect(transferred.body.data).toEqual({ transferred: true })
+
+    const organization = await app.prisma.organization.findUniqueOrThrow({
+      where: { slug: 'orbit-test-workspace' },
+    })
+    expect(organization.ownerId).toBe(memberUserId)
+
+    const formerOwnerRetry = await request(app.app)
+      .post('/api/v1/organizations/orbit-test-workspace/transfer-ownership')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .set(await csrfHeaders())
+      .send({ userId: memberUserId })
+    expect(formerOwnerRetry.status).toBe(403)
+
+    const transferredBack = await request(app.app)
+      .post('/api/v1/organizations/orbit-test-workspace/transfer-ownership')
+      .set('Authorization', `Bearer ${memberToken}`)
+      .set(await csrfHeaders())
+      .send({ userId: ownerUserId })
+    expect(transferredBack.status).toBe(200)
+
+    const restored = await app.prisma.organization.findUniqueOrThrow({
+      where: { slug: 'orbit-test-workspace' },
+    })
+    expect(restored.ownerId).toBe(ownerUserId)
   })
 
   it('manages teams with member constraints', async () => {

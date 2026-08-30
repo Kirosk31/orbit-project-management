@@ -1,15 +1,16 @@
 import type { NextFunction, Request, Response } from 'express'
+import { Permission } from '@orbit/shared'
 import { notFound } from '../../core/errors/index.js'
 import type { OrganizationsRepository } from '../organizations/organizations.repository.js'
 import type { ProjectsRepository } from './projects.repository.js'
 
 /**
- * Resolves a project id to the project, verifying the caller belongs to its
- * organization. Attaches `res.locals.project` plus the org membership so
- * `requireOrgPermission` can gate the route afterwards. Non-members receive
- * 404 to avoid leaking project existence.
+ * Resolves a project id and applies the current organization-wide project
+ * access policy. ProjectMember is an assignment record, not an access-control
+ * boundary. Non-members and roles without project.view receive 404 so project
+ * existence is not disclosed.
  */
-export function createRequireProjectMember(
+export function createRequireProjectAccess(
   projects: ProjectsRepository,
   organizations: OrganizationsRepository,
   resolveId: (req: Request, res: Response) => string = (req) => req.params.id as string,
@@ -27,6 +28,12 @@ export function createRequireProjectMember(
       return
     }
 
+    const permissions = new Set(membership.role.permissions.map((p) => p.permission.key))
+    if (!permissions.has(Permission.PROJECT_VIEW)) {
+      next(notFound('Project not found'))
+      return
+    }
+
     res.locals.project = {
       id: project.id,
       orgId: project.orgId,
@@ -38,7 +45,7 @@ export function createRequireProjectMember(
       id: membership.id,
       roleKey: membership.role.key,
       roleName: membership.role.name,
-      permissions: new Set(membership.role.permissions.map((p) => p.permission.key)),
+      permissions,
     }
     next()
   }

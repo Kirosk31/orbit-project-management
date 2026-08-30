@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express'
 import { notFound } from '../../core/errors/index.js'
 import type { BoardsRepository } from './boards.repository.js'
-import { createRequireProjectMember } from '../projects/project-access.js'
+import { createRequireProjectAccess } from '../projects/project-access.js'
 import type { OrganizationsRepository } from '../organizations/organizations.repository.js'
 import type { ProjectsRepository } from '../projects/projects.repository.js'
 
@@ -38,7 +38,7 @@ export function createRequireBoardMember(
       return
     }
     res.locals.board = { id: board.id, projectId: board.projectId }
-    createRequireProjectMember(projects, organizations, (_req, res) =>
+    createRequireProjectAccess(projects, organizations, (_req, res) =>
       String((res.locals.board as BoardLocals['board']).projectId ?? ''),
     )(req, res, next)
   }

@@ -11,7 +11,7 @@ import type { AuditService } from '../../shared/audit/audit.js'
 import { requireAuth, validateBody, validateQuery } from '../../shared/http/index.js'
 import { requireOrgMember, requireOrgPermission } from '../organizations/rbac.js'
 import type { OrganizationsRepository } from '../organizations/organizations.repository.js'
-import { createRequireProjectMember } from './project-access.js'
+import { createRequireProjectAccess } from './project-access.js'
 import { ProjectsController } from './projects.controller.js'
 import type { ProjectsRepository } from './projects.repository.js'
 import type { ProjectsService } from './projects.service.js'
@@ -35,7 +35,7 @@ export function createProjectsRouter(deps: ProjectsRouterDependencies): Router {
   const controller = new ProjectsController(deps.service, deps.auditService)
   const requireAuthMiddleware = requireAuth(deps.config.env.JWT_ACCESS_SECRET)
   const member = requireOrgMember(deps.organizationsRepository)
-  const projectMember = createRequireProjectMember(deps.repository, deps.organizationsRepository)
+  const projectMember = createRequireProjectAccess(deps.repository, deps.organizationsRepository)
 
   const router = Router()
 
@@ -57,6 +57,7 @@ export function createProjectsRouter(deps: ProjectsRouterDependencies): Router {
     '/organizations/:slug/projects',
     requireAuthMiddleware,
     member,
+    requireOrgPermission(Permission.PROJECT_VIEW),
     validateQuery(projectQuerySchema),
     controller.list,
   )

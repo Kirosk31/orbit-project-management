@@ -5,6 +5,7 @@ import type {
   CreateOrganizationDto,
   CreateTeamDto,
   InviteMemberDto,
+  TransferOwnershipDto,
   UpdateMemberRoleDto,
   UpdateOrganizationDto,
   UpdateTeamDto,
@@ -113,6 +114,21 @@ export class OrganizationsController {
       resourceId: req.params.userId as string,
     })
     respond(res, { removed: true })
+  }
+
+  transferOwnership = async (req: Request, res: Response): Promise<void> => {
+    const orgId = (res.locals.org as { id: string }).id
+    const dto = req.body as TransferOwnershipDto
+    await this.service.transferOwnership(orgId, req.user!.id, dto)
+    await this.auditService.record({
+      ...auditContextFromRequest(req),
+      orgId,
+      action: 'organization.ownership_transferred',
+      resourceType: 'organization',
+      resourceId: orgId,
+      changes: { fields: ['ownerId'], targetUserId: dto.userId },
+    })
+    respond(res, { transferred: true })
   }
 
   invite = async (req: Request, res: Response): Promise<void> => {

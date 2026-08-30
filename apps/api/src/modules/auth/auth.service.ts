@@ -6,6 +6,7 @@ import { conflict, forbidden, unauthorized } from '../../core/errors/index.js'
 import type { Logger } from '../../core/logger/logger.js'
 import { generateOpaqueToken, hashToken, signAccessToken } from '../../core/security/tokens.js'
 import type { MailService } from '../../shared/mail/mail.js'
+import type { RealtimePublisher } from '../realtime/realtime.publisher.js'
 import { createPasswordResetEmail, createVerificationEmail } from '../../shared/mail/templates.js'
 import type { AuthRepository, SessionContext } from './auth.repository.js'
 
@@ -28,10 +29,15 @@ export interface AuthServiceDependencies {
   config: AppConfig
   mailService: MailService
   logger: Logger
+  realtime?: Pick<RealtimePublisher, 'disconnectSession' | 'disconnectUser'>
 }
 
 export class AuthService {
   constructor(private readonly deps: AuthServiceDependencies) {}
+
+  isSessionActive(userId: string, sessionId: string): Promise<boolean> {
+    return this.deps.repository.isSessionActive(userId, sessionId, new Date())
+  }
 
   async register(dto: RegisterDto, context: SessionContext): Promise<AuthResult> {
     const existing = await this.deps.repository.findByEmail(dto.email.toLowerCase())
@@ -88,6 +94,12 @@ export class AuthService {
     }
 
     const session = stored.session
+    const now = new Date()
+
+    if (session.expiresAt <= now) {
+      await this.revokeSessionTokens(session.id)
+      throw unauthorized('Invalid or expired refresh token')
+    }
 
     if (stored.reusedAt) {
       throw unauthorized('Invalid refresh token')
@@ -95,7 +107,7 @@ export class AuthService {
 
     const successor = await this.deps.repository.findSuccessorToken(stored.id)
 
-    if (stored.revokedAt || stored.expiresAt < new Date() || session.revokedAt) {
+    if (stored.revokedAt || stored.expiresAt <= now || session.revokedAt) {
       if (successor) {
         await this.revokeSessionTokens(session.id)
         await this.deps.repository.markReused(stored.id)
@@ -115,6 +127,7 @@ export class AuthService {
     const issued = await this.issueSession(user.id, false, context, {
       rotatedFromId: stored.id,
       sessionId: session.id,
+      sessionExpiresAt: session.expiresAt,
     }).catch((error: unknown) => {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         this.deps.logger.warn(
@@ -145,12 +158,12 @@ export class AuthService {
       return
     }
 
-    await this.deps.repository.revokeRefreshToken(stored.id)
-    await this.deps.repository.revokeSession(stored.sessionId)
+    await this.revokeSessionTokens(stored.sessionId)
   }
 
-  async logoutAll(userId: string, keepSessionId: string): Promise<void> {
-    await this.deps.repository.revokeAllSessionsExcept(userId, keepSessionId)
+  async logoutAll(userId: string): Promise<void> {
+    await this.deps.repository.revokeAllSessions(userId)
+    this.deps.realtime?.disconnectUser(userId)
   }
 
   async verifyEmail(token: string): Promise<string> {
@@ -207,6 +220,7 @@ export class AuthService {
     if (!result) {
       throw unauthorized('Invalid or expired reset link')
     }
+    this.deps.realtime?.disconnectUser(result.userId)
     return result.userId
   }
 
@@ -222,11 +236,19 @@ export class AuthService {
     userId: string,
     rememberMe: boolean,
     context: SessionContext,
-    options?: { rotatedFromId?: string; sessionId?: string },
+    options?: { rotatedFromId?: string; sessionId?: string; sessionExpiresAt?: Date },
   ): Promise<IssuedSession> {
     const env = this.deps.config.env
     const ttlDays = rememberMe ? env.REFRESH_TOKEN_REMEMBER_DAYS : env.REFRESH_TOKEN_TTL_DAYS
-    const expiresAt = new Date(Date.now() + ttlDays * 86_400_000)
+    const requestedExpiresAt = new Date(Date.now() + ttlDays * 86_400_000)
+    const expiresAt =
+      options?.sessionExpiresAt && options.sessionExpiresAt < requestedExpiresAt
+        ? options.sessionExpiresAt
+        : requestedExpiresAt
+
+    if (expiresAt <= new Date()) {
+      throw unauthorized('Session has expired')
+    }
 
     const session = options?.sessionId
       ? { id: options.sessionId }
@@ -262,13 +284,16 @@ export class AuthService {
       expiresIn: env.JWT_ACCESS_TTL_SECONDS,
       sessionExpiresAt: expiresAt.toISOString(),
       refreshToken,
-      cookieMaxAgeMs: ttlDays * 86_400_000,
+      cookieMaxAgeMs: options?.sessionExpiresAt
+        ? Math.max(0, expiresAt.getTime() - Date.now())
+        : ttlDays * 86_400_000,
     }
   }
 
   private async revokeSessionTokens(sessionId: string): Promise<void> {
     await this.deps.repository.revokeRefreshTokensForSession(sessionId)
     await this.deps.repository.revokeSession(sessionId)
+    this.deps.realtime?.disconnectSession(sessionId)
   }
 
   private async sendVerificationEmail(user: {

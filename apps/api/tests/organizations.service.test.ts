@@ -68,6 +68,15 @@ const OWNER_ROLE = {
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
   updatedAt: new Date('2026-01-01T00:00:00.000Z'),
 }
+const ADMIN_ROLE = {
+  id: 'role-admin',
+  orgId: null,
+  key: 'ADMIN',
+  name: 'Admin',
+  isSystem: true,
+  createdAt: new Date('2026-01-01T00:00:00.000Z'),
+  updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+}
 const VIEWER_ROLE = {
   id: 'role-viewer',
   orgId: null,
@@ -105,14 +114,21 @@ function createFakeRepository(overrides: Partial<OrganizationsRepository> = {}) 
     findMember: vi.fn(async () => null),
     findMemberByEmail: vi.fn(async () => null),
     updateMemberRole: vi.fn(async () => undefined),
+    transferOwnership: vi.fn(async () => true),
     removeMember: vi.fn(async () => undefined),
-    findRoleById: vi.fn(async (roleId) =>
-      roleId === OWNER_ROLE.id ? OWNER_ROLE : roleId === VIEWER_ROLE.id ? VIEWER_ROLE : null,
-    ),
-    findSystemRoleByKey: vi.fn(async (key) =>
-      key === 'OWNER' ? OWNER_ROLE : key === 'VIEWER' ? VIEWER_ROLE : null,
-    ),
-    listRolesForOrg: vi.fn(async () => [OWNER_ROLE, VIEWER_ROLE]),
+    findRoleById: vi.fn(async (roleId) => {
+      if (roleId === OWNER_ROLE.id) return OWNER_ROLE
+      if (roleId === ADMIN_ROLE.id) return ADMIN_ROLE
+      if (roleId === VIEWER_ROLE.id) return VIEWER_ROLE
+      return null
+    }),
+    findSystemRoleByKey: vi.fn(async (key) => {
+      if (key === 'OWNER') return OWNER_ROLE
+      if (key === 'ADMIN') return ADMIN_ROLE
+      if (key === 'VIEWER') return VIEWER_ROLE
+      return null
+    }),
+    listRolesForOrg: vi.fn(async () => [OWNER_ROLE, ADMIN_ROLE, VIEWER_ROLE]),
     listTeams: vi.fn(async () => [{ ...makeTeam(), memberCount: 0 }]),
     findTeam: vi.fn(async () => makeTeam()),
     findTeamByName: vi.fn(async () => null),
@@ -143,12 +159,14 @@ function createFakeRepository(overrides: Partial<OrganizationsRepository> = {}) 
 function createService(
   repository: OrganizationsRepository,
   mailService: MailService = { sendMail: vi.fn(async () => undefined) },
+  realtime?: { disconnectUser(userId: string): void },
 ): OrganizationsService {
   return new OrganizationsService({
     repository,
     logger,
     mailService,
     webAppUrl: 'http://localhost:5173',
+    realtime,
   })
 }
 
@@ -297,6 +315,21 @@ describe('OrganizationsService.inviteMember', () => {
 
     expect(result).toMatchObject({ statusCode: 400 })
   })
+
+  it('rejects invitations that would assign the owner role', async () => {
+    const repository = createFakeRepository()
+    const service = createService(repository)
+
+    const result = await service
+      .inviteMember('org-1', 'user-1', {
+        email: 'grace@orbit.app',
+        roleId: OWNER_ROLE.id,
+      })
+      .catch((error) => error)
+
+    expect(result).toMatchObject({ statusCode: 403 })
+    expect(repository.createInvitation).not.toHaveBeenCalled()
+  })
 })
 
 describe('OrganizationsService.acceptInvitation', () => {
@@ -325,6 +358,22 @@ describe('OrganizationsService.acceptInvitation', () => {
       .acceptInvitation('user-9', { token: 'nope' })
       .catch((error) => error)
     expect(result).toMatchObject({ statusCode: 404 })
+  })
+
+  it('revokes a legacy invitation that carries the owner role', async () => {
+    const repository = createFakeRepository({
+      findInvitationByTokenHash: vi.fn(async () => makeInvitation({ roleId: OWNER_ROLE.id })),
+      findById: vi.fn(async () => makeOrg()),
+    })
+    const service = createService(repository)
+
+    const result = await service
+      .acceptInvitation('user-9', { token: 'legacy-owner-token' })
+      .catch((error) => error)
+
+    expect(result).toMatchObject({ statusCode: 403 })
+    expect(repository.setInvitationStatus).toHaveBeenCalledWith('inv-1', 'REVOKED')
+    expect(repository.acceptInvitation).not.toHaveBeenCalled()
   })
 
   it('rejects non-pending invitations', async () => {
@@ -400,6 +449,15 @@ describe('OrganizationsService.acceptInvitation', () => {
 })
 
 describe('OrganizationsService member management', () => {
+  it('does not expose owner as an assignable role', async () => {
+    const service = createService(createFakeRepository())
+
+    await expect(service.listRoles('org-1')).resolves.toEqual([
+      expect.objectContaining({ key: 'ADMIN' }),
+      expect.objectContaining({ key: 'VIEWER' }),
+    ])
+  })
+
   it('protects the owner from role changes and removal', async () => {
     const ownerRow = {
       id: 'member-owner',
@@ -426,7 +484,7 @@ describe('OrganizationsService member management', () => {
     expect(removal).toMatchObject({ statusCode: 403 })
   })
 
-  it('allows role changes for non-owners', async () => {
+  it('allows non-owner role changes that do not transfer ownership', async () => {
     const memberRow = {
       id: 'member-2',
       userId: 'user-2',
@@ -444,11 +502,82 @@ describe('OrganizationsService member management', () => {
     const service = createService(repository)
 
     const updated = await service.updateMemberRole('org-1', 'user-2', {
-      roleId: 'role-owner',
+      roleId: 'role-admin',
     })
 
-    expect(repository.updateMemberRole).toHaveBeenCalledWith('member-2', 'role-owner')
-    expect(updated).toMatchObject({ roleKey: 'OWNER' })
+    expect(repository.updateMemberRole).toHaveBeenCalledWith('member-2', 'role-admin')
+    expect(updated).toMatchObject({ roleKey: 'ADMIN' })
+  })
+
+  it('rejects promoting a member to owner through the generic role endpoint', async () => {
+    const memberRow = {
+      id: 'member-2',
+      userId: 'user-2',
+      email: 'grace@orbit.app',
+      fullName: 'Grace',
+      avatarKey: null,
+      roleId: 'role-admin',
+      roleKey: 'ADMIN',
+      roleName: 'Admin',
+      joinedAt: new Date(),
+    }
+    const repository = createFakeRepository({
+      findMember: vi.fn(async () => memberRow),
+    })
+    const service = createService(repository)
+
+    const result = await service
+      .updateMemberRole('org-1', 'user-2', { roleId: OWNER_ROLE.id })
+      .catch((error) => error)
+
+    expect(result).toMatchObject({ statusCode: 403 })
+    expect(repository.updateMemberRole).not.toHaveBeenCalled()
+  })
+
+  it('transfers ownership atomically to an active member and disconnects both identities', async () => {
+    const target = {
+      id: 'member-2',
+      userId: 'user-2',
+      email: 'grace@orbit.app',
+      fullName: 'Grace',
+      avatarKey: null,
+      roleId: ADMIN_ROLE.id,
+      roleKey: 'ADMIN',
+      roleName: 'Admin',
+      joinedAt: new Date(),
+    }
+    const repository = createFakeRepository({
+      findById: vi.fn(async () => makeOrg({ ownerId: 'user-1' })),
+      findMember: vi.fn(async () => target),
+    })
+    const realtime = { disconnectUser: vi.fn() }
+    const service = createService(repository, undefined, realtime)
+
+    await service.transferOwnership('org-1', 'user-1', { userId: 'user-2' })
+
+    expect(repository.transferOwnership).toHaveBeenCalledWith({
+      orgId: 'org-1',
+      currentOwnerId: 'user-1',
+      targetUserId: 'user-2',
+      ownerRoleId: OWNER_ROLE.id,
+      previousOwnerRoleId: ADMIN_ROLE.id,
+    })
+    expect(realtime.disconnectUser).toHaveBeenCalledWith('user-1')
+    expect(realtime.disconnectUser).toHaveBeenCalledWith('user-2')
+  })
+
+  it('rejects ownership transfer by anyone other than the current owner', async () => {
+    const repository = createFakeRepository({
+      findById: vi.fn(async () => makeOrg({ ownerId: 'user-1' })),
+    })
+    const service = createService(repository)
+
+    const result = await service
+      .transferOwnership('org-1', 'user-admin', { userId: 'user-2' })
+      .catch((error) => error)
+
+    expect(result).toMatchObject({ statusCode: 403 })
+    expect(repository.transferOwnership).not.toHaveBeenCalled()
   })
 
   it('rejects roles outside the organization', async () => {

@@ -42,6 +42,9 @@ import { PrismaSearchRepository } from './modules/search/search.repository.js'
 import { SearchService } from './modules/search/search.service.js'
 import { PrismaAnalyticsRepository } from './modules/analytics/analytics.repository.js'
 import { AnalyticsService } from './modules/analytics/analytics.service.js'
+import { PrismaBillingRepository } from './modules/billing/billing.repository.js'
+import { BillingService } from './modules/billing/billing.service.js'
+import { PlanLimiter } from './modules/billing/billing.plan-limiter.js'
 
 const SHUTDOWN_TIMEOUT_MS = 10_000
 
@@ -109,11 +112,13 @@ async function bootstrap(): Promise<void> {
   const rateLimiterService = new RateLimiterService(redis, logger)
   const auditService = new PrismaAuditService(prisma)
   const realtimePublisher = new DeferredRealtimePublisher()
+  const authRepository = new PrismaAuthRepository(prisma)
   const authService = new AuthService({
-    repository: new PrismaAuthRepository(prisma),
+    repository: authRepository,
     config,
     mailService,
     logger,
+    realtime: realtimePublisher,
   })
   const usersService = new UsersService({
     repository: new PrismaUsersRepository(prisma),
@@ -121,11 +126,22 @@ async function bootstrap(): Promise<void> {
     logger,
   })
   const organizationsRepository = new PrismaOrganizationsRepository(prisma)
+  const billingRepository = new PrismaBillingRepository(prisma)
+  const billingService = new BillingService({
+    repository: billingRepository,
+    organizations: organizationsRepository,
+    defaultPlanKey: config.billing.defaultPlanKey,
+    checkoutEnabled: config.billing.enabled,
+    webAppUrl: config.env.WEB_APP_URL,
+  })
+  const planLimiter = new PlanLimiter(billingService, config.billing.enabled)
   const organizationsService = new OrganizationsService({
     repository: organizationsRepository,
     logger,
     mailService,
     webAppUrl: config.env.WEB_APP_URL,
+    planLimiter,
+    realtime: realtimePublisher,
   })
   const projectsRepository = new PrismaProjectsRepository(prisma)
   const projectsService = new ProjectsService({
@@ -219,6 +235,7 @@ async function bootstrap(): Promise<void> {
     notificationsRepository,
     searchService,
     analyticsService,
+    billingService,
   })
 
   const server: Server = createServer(app)
@@ -245,6 +262,7 @@ async function bootstrap(): Promise<void> {
     config,
     logger,
     realtimeAuthorizationService,
+    authService,
     createAdapter(realtimePublisherRedis, realtimeSubscriberRedis, {
       publishOnSpecificResponseChannel: true,
     }),

@@ -61,6 +61,7 @@ function createFakeOrganizationsRepository(overrides: Partial<OrganizationsRepos
     findMember: vi.fn(async () => null),
     findMemberByEmail: vi.fn(async () => null),
     updateMemberRole: vi.fn(async () => undefined),
+    transferOwnership: vi.fn(async () => true),
     removeMember: vi.fn(async () => undefined),
     findRoleById: vi.fn(async () => null),
     findSystemRoleByKey: vi.fn(async () => null),
@@ -206,6 +207,23 @@ describe('ProjectsService', () => {
       .addMember('project-1', 'user-1', { userId: 'user-2' })
       .catch((e) => e)
     expect(error.code).toBe('CONFLICT')
+  })
+
+  it('rejects a project member role from another organization', async () => {
+    const { service, repository } = buildService({
+      organizations: {
+        findMember: vi.fn(async () => ({ id: 'member-2' }) as never),
+        findRoleById: vi.fn(async () => ({ id: 'role-foreign', orgId: 'org-foreign' }) as never),
+      },
+    })
+
+    const error = await service
+      .addMember('project-1', 'user-1', { userId: 'user-2', roleId: 'role-foreign' })
+      .catch((caught) => caught)
+
+    expect(error.code).toBe('BAD_REQUEST')
+    expect(error.details).toEqual({ field: 'roleId' })
+    expect(repository.addProjectMember).not.toHaveBeenCalled()
   })
 
   it('returns a typed member after adding', async () => {

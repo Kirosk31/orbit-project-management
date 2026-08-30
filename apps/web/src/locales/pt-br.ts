@@ -96,7 +96,7 @@ export const ptBR = {
         'Presença autorizada, eventos do quadro e notificações mantêm toda a equipe conectada em sincronia.',
     },
     rbac: {
-      title: 'Permissões de nível empresarial',
+      title: 'Permissões granulares',
       description:
         'Papéis de Proprietário, Administrador, Gerente, Desenvolvedor e Leitor com verificações dinâmicas por recurso.',
     },

@@ -297,7 +297,11 @@ export class PrismaTasksRepository implements TasksRepository {
       const nextStatusId = data.statusId ?? task.statusId
       const siblings = await tx.task.findMany({
         where: {
+          orgId: task.orgId,
+          projectId: task.projectId,
+          boardId: nextBoardId,
           columnId: nextColumnId,
+          parentId: null,
           deletedAt: null,
           isArchived: false,
           id: { not: taskId },

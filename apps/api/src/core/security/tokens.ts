@@ -8,6 +8,10 @@ export interface AccessTokenPayload {
   type: 'access'
 }
 
+export interface VerifiedAccessTokenPayload extends AccessTokenPayload {
+  expiresAt: number
+}
+
 export function signAccessToken(
   payload: AccessTokenPayload,
   secret: string,
@@ -17,7 +21,7 @@ export function signAccessToken(
   return jwt.sign(payload, secret, options)
 }
 
-export function verifyAccessToken(token: string, secret: string): AccessTokenPayload {
+export function verifyAccessToken(token: string, secret: string): VerifiedAccessTokenPayload {
   try {
     const decoded = jwt.verify(token, secret, { algorithms: ['HS256'] })
     if (
@@ -26,7 +30,8 @@ export function verifyAccessToken(token: string, secret: string): AccessTokenPay
       typeof decoded.sub !== 'string' ||
       decoded.sub.length === 0 ||
       typeof decoded.sessionId !== 'string' ||
-      decoded.sessionId.length === 0
+      decoded.sessionId.length === 0 ||
+      typeof decoded.exp !== 'number'
     ) {
       throw unauthorized('Invalid access token')
     }
@@ -34,6 +39,7 @@ export function verifyAccessToken(token: string, secret: string): AccessTokenPay
       sub: decoded.sub,
       sessionId: decoded.sessionId,
       type: 'access',
+      expiresAt: decoded.exp,
     }
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError || error instanceof jwt.TokenExpiredError) {

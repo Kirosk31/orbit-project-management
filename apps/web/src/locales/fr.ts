@@ -96,7 +96,7 @@ export const fr = {
         "La présence autorisée, les événements du tableau et les notifications synchronisent toute l'équipe connectée.",
     },
     rbac: {
-      title: 'Autorisations de niveau entreprise',
+      title: 'Autorisations granulaires',
       description:
         'Rôles Propriétaire, Administrateur, Responsable, Développeur et Lecteur avec contrôles dynamiques par ressource.',
     },

@@ -1,4 +1,5 @@
 import { parseEnv, type Env } from './env.js'
+import type { PlanKey } from '@orbit/shared'
 
 export interface CorsConfig {
   origins: string[]
@@ -32,6 +33,10 @@ export interface AppConfig {
       search: RateLimitConfig
       analytics: RateLimitConfig
     }
+  }
+  billing: {
+    enabled: boolean
+    defaultPlanKey: PlanKey
   }
 }
 
@@ -79,6 +84,10 @@ export function createConfig(env: Env = parseEnv()): AppConfig {
         search: { max: env.RATE_LIMIT_SEARCH_MAX, windowSeconds: applicationWindowSeconds },
         analytics: { max: env.RATE_LIMIT_ANALYTICS_MAX, windowSeconds: applicationWindowSeconds },
       },
+    },
+    billing: {
+      enabled: env.BILLING_ENABLED === 'true',
+      defaultPlanKey: env.BILLING_DEFAULT_PLAN_KEY,
     },
   }
 }

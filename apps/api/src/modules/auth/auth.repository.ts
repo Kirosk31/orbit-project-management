@@ -23,9 +23,10 @@ export interface AuthRepository {
   updateLastLoginAt(userId: string, at: Date): Promise<void>
   markEmailVerified(userId: string): Promise<void>
   createSession(input: CreateSessionInput): Promise<Session>
+  isSessionActive(userId: string, sessionId: string, at: Date): Promise<boolean>
   touchSession(sessionId: string): Promise<void>
   revokeSession(sessionId: string): Promise<void>
-  revokeAllSessionsExcept(userId: string, keepSessionId: string): Promise<void>
+  revokeAllSessions(userId: string): Promise<void>
   findRefreshTokenByHash(tokenHash: string): Promise<(RefreshToken & { session: Session }) | null>
   findSuccessorToken(rotatedFromId: string): Promise<RefreshToken | null>
   createRefreshToken(input: {
@@ -70,6 +71,20 @@ export class PrismaAuthRepository implements AuthRepository {
 
   findById(id: string) {
     return this.prisma.user.findUnique({ where: { id } })
+  }
+
+  async isSessionActive(userId: string, sessionId: string, at: Date): Promise<boolean> {
+    const session = await this.prisma.session.findFirst({
+      where: {
+        id: sessionId,
+        userId,
+        revokedAt: null,
+        expiresAt: { gt: at },
+        user: { isActive: true, deletedAt: null },
+      },
+      select: { id: true },
+    })
+    return session !== null
   }
 
   createUserWithPersonalOrg(input: { email: string; passwordHash: string; fullName: string }) {
@@ -157,9 +172,9 @@ export class PrismaAuthRepository implements AuthRepository {
     })
   }
 
-  async revokeAllSessionsExcept(userId: string, keepSessionId: string): Promise<void> {
+  async revokeAllSessions(userId: string): Promise<void> {
     await this.prisma.session.updateMany({
-      where: { userId, revokedAt: null, id: { not: keepSessionId } },
+      where: { userId, revokedAt: null },
       data: { revokedAt: new Date() },
     })
   }

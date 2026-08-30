@@ -76,6 +76,13 @@ export interface OrganizationsRepository {
   findMember(orgId: string, userId: string): Promise<OrgMemberRow | null>
   findMemberByEmail(orgId: string, email: string): Promise<OrgMemberRow | null>
   updateMemberRole(memberId: string, roleId: string): Promise<void>
+  transferOwnership(input: {
+    orgId: string
+    currentOwnerId: string
+    targetUserId: string
+    ownerRoleId: string
+    previousOwnerRoleId: string
+  }): Promise<boolean>
   removeMember(memberId: string): Promise<void>
   findRoleById(roleId: string): Promise<Role | null>
   findSystemRoleByKey(key: string): Promise<Role | null>
@@ -177,17 +184,23 @@ export class PrismaOrganizationsRepository implements OrganizationsRepository {
       orderBy: { createdAt: 'asc' },
     })
 
-    return memberships.map((membership) => ({
-      ...membership.org,
-      roleKey: membership.role.key,
-      memberCount: membership.org._count.members,
-    }))
+    return memberships
+      .filter(
+        (membership) =>
+          membership.role.key !== 'OWNER' || membership.org.ownerId === membership.userId,
+      )
+      .map((membership) => ({
+        ...membership.org,
+        roleKey: membership.role.key,
+        memberCount: membership.org._count.members,
+      }))
   }
 
-  getMembership(orgId: string, userId: string) {
-    return this.prisma.organizationMember.findUnique({
+  async getMembership(orgId: string, userId: string): Promise<OrgMembership | null> {
+    const membership = await this.prisma.organizationMember.findUnique({
       where: { orgId_userId: { orgId, userId } },
       include: {
+        org: { select: { ownerId: true } },
         role: {
           select: {
             key: true,
@@ -198,6 +211,14 @@ export class PrismaOrganizationsRepository implements OrganizationsRepository {
         },
       },
     })
+
+    if (!membership) return null
+    if (membership.role.key === 'OWNER' && membership.org.ownerId !== membership.userId) {
+      return null
+    }
+
+    const { org: _org, ...authorizedMembership } = membership
+    return authorizedMembership
   }
 
   countMembers(orgId: string) {
@@ -238,7 +259,7 @@ export class PrismaOrganizationsRepository implements OrganizationsRepository {
       },
     })
 
-    if (!row) return null
+    if (!row || !row.isActive) return null
 
     return {
       id: row.id,
@@ -281,6 +302,61 @@ export class PrismaOrganizationsRepository implements OrganizationsRepository {
     await this.prisma.organizationMember.update({
       where: { id: memberId },
       data: { roleId },
+    })
+  }
+
+  transferOwnership(input: {
+    orgId: string
+    currentOwnerId: string
+    targetUserId: string
+    ownerRoleId: string
+    previousOwnerRoleId: string
+  }): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      const ownership = await tx.organization.updateMany({
+        where: {
+          id: input.orgId,
+          ownerId: input.currentOwnerId,
+          deletedAt: null,
+        },
+        data: { ownerId: input.targetUserId },
+      })
+      if (ownership.count !== 1) return false
+
+      const target = await tx.organizationMember.updateMany({
+        where: {
+          orgId: input.orgId,
+          userId: input.targetUserId,
+          isActive: true,
+        },
+        data: { roleId: input.ownerRoleId },
+      })
+      if (target.count !== 1) {
+        throw new Error('Ownership target is not an active organization member')
+      }
+
+      const previousOwner = await tx.organizationMember.updateMany({
+        where: {
+          orgId: input.orgId,
+          userId: input.currentOwnerId,
+          isActive: true,
+        },
+        data: { roleId: input.previousOwnerRoleId },
+      })
+      if (previousOwner.count !== 1) {
+        throw new Error('Current owner membership is missing')
+      }
+
+      await tx.organizationMember.updateMany({
+        where: {
+          orgId: input.orgId,
+          roleId: input.ownerRoleId,
+          userId: { not: input.targetUserId },
+        },
+        data: { roleId: input.previousOwnerRoleId },
+      })
+
+      return true
     })
   }
 
@@ -458,8 +534,10 @@ export class PrismaOrganizationsRepository implements OrganizationsRepository {
       })
       if (claim.count !== 1) return false
 
-      await tx.organizationMember.create({
-        data: { orgId: input.orgId, userId: input.userId, roleId: input.roleId },
+      await tx.organizationMember.upsert({
+        where: { orgId_userId: { orgId: input.orgId, userId: input.userId } },
+        create: { orgId: input.orgId, userId: input.userId, roleId: input.roleId },
+        update: { roleId: input.roleId, isActive: true },
       })
       return true
     })

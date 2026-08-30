@@ -12,7 +12,7 @@ import type { AuditService } from '../../shared/audit/audit.js'
 import { requireAuth, validateBody } from '../../shared/http/index.js'
 import { requireOrgPermission } from '../organizations/rbac.js'
 import type { OrganizationsRepository } from '../organizations/organizations.repository.js'
-import { createRequireProjectMember } from '../projects/project-access.js'
+import { createRequireProjectAccess } from '../projects/project-access.js'
 import type { ProjectsRepository } from '../projects/projects.repository.js'
 import { createRequireBoardMember } from './board-access.js'
 import { BoardsController } from './boards.controller.js'
@@ -38,7 +38,7 @@ export interface BoardsRouterDependencies {
 export function createBoardsRouter(deps: BoardsRouterDependencies): Router {
   const controller = new BoardsController(deps.service, deps.auditService)
   const requireAuthMiddleware = requireAuth(deps.config.env.JWT_ACCESS_SECRET)
-  const projectMember = createRequireProjectMember(
+  const projectMember = createRequireProjectAccess(
     deps.projectsRepository,
     deps.organizationsRepository,
   )

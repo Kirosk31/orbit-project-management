@@ -12,7 +12,7 @@ import { notFound } from '../../core/errors/index.js'
 import { requireAuth, validateBody, validateQuery } from '../../shared/http/index.js'
 import { requireOrgPermission } from '../organizations/rbac.js'
 import type { OrganizationsRepository } from '../organizations/organizations.repository.js'
-import { createRequireProjectMember } from '../projects/project-access.js'
+import { createRequireProjectAccess } from '../projects/project-access.js'
 import type { ProjectsRepository } from '../projects/projects.repository.js'
 import type { TasksRepository } from '../tasks/tasks.repository.js'
 import { CommentsController } from './comments.controller.js'
@@ -39,7 +39,7 @@ export interface CommentsRouterDependencies {
 function requireCommentMember(
   comments: CommentsRepository,
   tasks: TasksRepository,
-  requireProjectMember: ReturnType<typeof createRequireProjectMember>,
+  requireProjectMember: ReturnType<typeof createRequireProjectAccess>,
 ) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const comment = await comments.findCommentById(req.params.id as string)
@@ -61,7 +61,7 @@ function requireCommentMember(
 /** Resolves a task from `:id`, then delegates access to the project middleware. */
 function requireTaskMember(
   tasks: TasksRepository,
-  requireProjectMember: ReturnType<typeof createRequireProjectMember>,
+  requireProjectMember: ReturnType<typeof createRequireProjectAccess>,
 ) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const row = await tasks.findTaskById(req.params.id as string)
@@ -79,14 +79,14 @@ export function createCommentsRouter(deps: CommentsRouterDependencies): Router {
   const requireAuthMiddleware = requireAuth(deps.config.env.JWT_ACCESS_SECRET)
   const taskMember = requireTaskMember(
     deps.tasksRepository,
-    createRequireProjectMember(deps.projectsRepository, deps.organizationsRepository, (_req, res) =>
+    createRequireProjectAccess(deps.projectsRepository, deps.organizationsRepository, (_req, res) =>
       String((res.locals.task as { projectId: string }).projectId ?? ''),
     ),
   )
   const commentMember = requireCommentMember(
     deps.repository,
     deps.tasksRepository,
-    createRequireProjectMember(deps.projectsRepository, deps.organizationsRepository, (_req, res) =>
+    createRequireProjectAccess(deps.projectsRepository, deps.organizationsRepository, (_req, res) =>
       String((res.locals.task as { projectId: string }).projectId ?? ''),
     ),
   )

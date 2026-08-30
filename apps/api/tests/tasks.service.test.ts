@@ -183,6 +183,8 @@ function buildService(
   const realtime = {
     emitToUser: vi.fn(),
     emitToProject: vi.fn(),
+    disconnectUser: vi.fn(),
+    disconnectSession: vi.fn(),
     ...overrides.realtime,
   } satisfies RealtimePublisher
   return {

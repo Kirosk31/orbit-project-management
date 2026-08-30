@@ -149,6 +149,15 @@ export class ProjectsService {
       throw badRequest('The user is not a member of this organization', { field: 'userId' })
     }
 
+    if (dto.roleId) {
+      const role = await this.deps.organizationsRepository.findRoleById(dto.roleId)
+      if (!role || (role.orgId !== null && role.orgId !== project.orgId) || role.key === 'OWNER') {
+        throw badRequest('The selected role is not available for this project', {
+          field: 'roleId',
+        })
+      }
+    }
+
     const existing = await this.deps.repository.findProjectMember(project.id, dto.userId)
     if (existing) {
       throw conflict('The user is already a member of this project', { field: 'userId' })

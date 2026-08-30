@@ -59,6 +59,14 @@ export const updateMemberRoleSchema = z.object({
 
 export type UpdateMemberRoleDto = z.infer<typeof updateMemberRoleSchema>
 
+export const transferOwnershipSchema = z
+  .object({
+    userId: z.uuid('A valid target user is required'),
+  })
+  .strict()
+
+export type TransferOwnershipDto = z.infer<typeof transferOwnershipSchema>
+
 export interface OrganizationMemberDto {
   id: string
   userId: string

@@ -1,5 +1,5 @@
 import bcrypt from 'bcrypt'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { Session, RefreshToken } from '@prisma/client'
 import type { AppError } from '../src/core/errors/index.js'
 import { isAppError } from '../src/core/errors/index.js'
@@ -137,6 +137,19 @@ function createFakeRepository(): FakeRepository {
       return session
     },
 
+    async isSessionActive(userId, sessionId, at) {
+      const user = this.users.find((candidate) => candidate.id === userId)
+      const session = this.sessions.find((candidate) => candidate.id === sessionId)
+      return Boolean(
+        user?.isActive &&
+        !user.deletedAt &&
+        session &&
+        session.userId === userId &&
+        !session.revokedAt &&
+        session.expiresAt > at,
+      )
+    },
+
     async touchSession(sessionId) {
       const session = this.sessions.find((s) => s.id === sessionId)
       if (session) {
@@ -151,9 +164,9 @@ function createFakeRepository(): FakeRepository {
       }
     },
 
-    async revokeAllSessionsExcept(userId, keepSessionId) {
+    async revokeAllSessions(userId) {
       for (const session of this.sessions) {
-        if (session.userId === userId && session.id !== keepSessionId && !session.revokedAt) {
+        if (session.userId === userId && !session.revokedAt) {
           session.revokedAt = new Date()
         }
       }
@@ -251,6 +264,10 @@ function createFakeRepository(): FakeRepository {
 function createService(repository: FakeRepository): {
   service: AuthService
   mail: MailService & { sent: Array<{ subject: string; to: { address: string } }> }
+  realtime: {
+    disconnectSession: ReturnType<typeof vi.fn>
+    disconnectUser: ReturnType<typeof vi.fn>
+  }
 } {
   const sent: Array<{ subject: string; to: { address: string } }> = []
   const mail: MailService & { sent: typeof sent } = {
@@ -259,13 +276,18 @@ function createService(repository: FakeRepository): {
       sent.push({ subject: options.subject, to: options.to })
     },
   }
+  const realtime = {
+    disconnectSession: vi.fn(),
+    disconnectUser: vi.fn(),
+  }
   const service = new AuthService({
     repository,
     config,
     mailService: mail,
     logger: createLogger({ level: 'silent', isProduction: false }),
+    realtime,
   })
-  return { service, mail }
+  return { service, mail, realtime }
 }
 
 const context: SessionContext = { ipAddress: '127.0.0.1', userAgent: 'vitest' }
@@ -398,6 +420,43 @@ describe('AuthService', () => {
 
       expect((error as AppError).statusCode).toBe(401)
     })
+
+    it('rejects and revokes a refresh chain after the absolute session expiry', async () => {
+      const repository = createFakeRepository()
+      repository.users.push(makeUser())
+      const session = makeSession({ expiresAt: new Date(Date.now() - 1_000) })
+      repository.sessions.push(session)
+      const token = makeRefreshToken({ tokenHash: hashToken('expired-session-token') })
+      repository.tokens.push(token)
+      const { service } = createService(repository)
+
+      const error = await service.refresh('expired-session-token', context).catch((e) => e)
+
+      expect((error as AppError).statusCode).toBe(401)
+      expect(session.revokedAt).toBeTruthy()
+      expect(token.revokedAt).toBeTruthy()
+    })
+
+    it('never rotates a refresh token beyond the absolute session expiry', async () => {
+      const repository = createFakeRepository()
+      repository.users.push(makeUser())
+      const absoluteExpiry = new Date(Date.now() + 60 * 60 * 1_000)
+      repository.sessions.push(makeSession({ expiresAt: absoluteExpiry }))
+      repository.tokens.push(
+        makeRefreshToken({
+          tokenHash: hashToken('bounded-session-token'),
+          expiresAt: absoluteExpiry,
+        }),
+      )
+      const { service } = createService(repository)
+
+      const result = await service.refresh('bounded-session-token', context)
+
+      expect(repository.tokens[1]!.expiresAt.getTime()).toBeLessThanOrEqual(
+        absoluteExpiry.getTime(),
+      )
+      expect(result.cookieMaxAgeMs).toBeLessThanOrEqual(60 * 60 * 1_000)
+    })
   })
 
   describe('logout', () => {
@@ -407,12 +466,13 @@ describe('AuthService', () => {
       repository.tokens.push(token)
       const session = makeSession()
       repository.sessions.push(session)
-      const { service } = createService(repository)
+      const { service, realtime } = createService(repository)
 
       await service.logout('the-opaque-token')
 
       expect(token.revokedAt).toBeTruthy()
       expect(session.revokedAt).toBeTruthy()
+      expect(realtime.disconnectSession).toHaveBeenCalledWith(session.id)
     })
 
     it('is a no-op when the token is unknown', async () => {
@@ -420,6 +480,32 @@ describe('AuthService', () => {
       const { service } = createService(repository)
 
       await expect(service.logout('unknown')).resolves.toBeUndefined()
+    })
+
+    it('revokes every session and disconnects every realtime client', async () => {
+      const repository = createFakeRepository()
+      repository.sessions.push(makeSession({ id: 'session-1' }), makeSession({ id: 'session-2' }))
+      const { service, realtime } = createService(repository)
+
+      await service.logoutAll('user-1')
+
+      expect(repository.sessions.every((session) => session.revokedAt !== null)).toBe(true)
+      expect(realtime.disconnectUser).toHaveBeenCalledWith('user-1')
+    })
+  })
+
+  describe('session validation', () => {
+    it('accepts only an active, unexpired session for an active user', async () => {
+      const repository = createFakeRepository()
+      const user = makeUser()
+      const session = makeSession()
+      repository.users.push(user)
+      repository.sessions.push(session)
+      const { service } = createService(repository)
+
+      await expect(service.isSessionActive(user.id, session.id)).resolves.toBe(true)
+      session.revokedAt = new Date()
+      await expect(service.isSessionActive(user.id, session.id)).resolves.toBe(false)
     })
   })
 
@@ -477,7 +563,7 @@ describe('AuthService', () => {
       repository.sessions.push(session)
       const tokenHash = hashToken('reset-token')
       repository.tokens.push(makeRefreshToken({ tokenHash }))
-      const { service } = createService(repository)
+      const { service, realtime } = createService(repository)
 
       await service.resetPassword('reset-token', 'NewPassword123')
 
@@ -485,6 +571,7 @@ describe('AuthService', () => {
       const newHash = repository.passwordHashes.get(user.id)!
       expect(newHash).not.toBe(user.passwordHash)
       expect(await bcrypt.compare('NewPassword123', newHash)).toBe(true)
+      expect(realtime.disconnectUser).toHaveBeenCalledWith(user.id)
     })
   })
 })

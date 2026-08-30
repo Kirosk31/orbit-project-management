@@ -6,6 +6,7 @@ import {
   createOrganizationSchema,
   createTeamSchema,
   inviteMemberSchema,
+  transferOwnershipSchema,
   updateMemberRoleSchema,
   updateOrganizationSchema,
   updateTeamSchema,
@@ -185,6 +186,14 @@ export function createOrganizationsRouter(deps: OrganizationsRouterDependencies)
     member,
     requireOrgPermission(Permission.ORG_MANAGE_MEMBERS),
     controller.removeMember,
+  )
+
+  router.post(
+    '/:slug/transfer-ownership',
+    requireAuthMiddleware,
+    member,
+    validateBody(transferOwnershipSchema),
+    controller.transferOwnership,
   )
 
   router.get('/:slug/teams', requireAuthMiddleware, member, controller.listTeams)

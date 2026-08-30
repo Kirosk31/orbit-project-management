@@ -164,6 +164,7 @@ model Organization {
   activityLogs  ActivityLog[]
   auditLogs     AuditLog[]
   savedFilters  SavedFilter[]
+  subscription  Subscription?
 
   @@index([ownerId])
   @@index([deletedAt])
@@ -750,6 +751,59 @@ model AuditLog {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// Billing & subscription management
+// ────────────────────────────────────────────────────────────────────────────
+
+model BillingPlan {
+  id              String   @id @default(uuid())
+  key             String   @unique
+  name            String
+  priceUSD        Decimal  @db.Decimal(10, 2)
+  currency        String   @default("USD")
+  maxMembers      Int      @default(5)
+  maxProjects     Int      @default(1)
+  maxStorageBytes BigInt   @default(1073741824)
+  customRoles     Boolean  @default(false)
+  whiteLabel      Boolean  @default(false)
+  webhooks        Boolean  @default(false)
+  publicShare     Boolean  @default(false)
+  sso             Boolean  @default(false)
+  auditExport     Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  isDefault       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  subscriptions Subscription[]
+
+  @@map("billing_plans")
+}
+
+model Subscription {
+  id                   String              @id @default(uuid())
+  orgId                String              @unique
+  planId               String
+  status               SubscriptionStatus  @default(ACTIVE)
+  seats                Int                 @default(5)
+  isTrial              Boolean             @default(false)
+  trialEndsAt          DateTime?
+  currentPeriodEnd     DateTime?
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  lastEventId          String?
+  lastEventAt          DateTime?
+  createdBy            String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  plan BillingPlan  @relation(fields: [planId], references: [id])
+
+  @@index([orgId])
+  @@map("subscriptions")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // Enums
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -781,4 +835,14 @@ enum NotificationType {
   INVITATION
 
   @@map("notification_types")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+
+  @@map("subscription_statuses")
 }

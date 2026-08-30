@@ -36,7 +36,7 @@ import { requireOrgMember, requireOrgPermission } from '../organizations/rbac.js
 import type { OrganizationsRepository } from '../organizations/organizations.repository.js'
 import { createRequireBoardMember } from '../boards/board-access.js'
 import type { BoardsRepository } from '../boards/boards.repository.js'
-import { createRequireProjectMember } from '../projects/project-access.js'
+import { createRequireProjectAccess } from '../projects/project-access.js'
 import type { ProjectsRepository } from '../projects/projects.repository.js'
 import { TasksController } from './tasks.controller.js'
 import type { TasksRepository } from './tasks.repository.js'
@@ -90,7 +90,7 @@ const attachmentUpload = multer({
 /** Resolves a task from `:id`, then delegates access to the project access middleware. */
 function requireTaskMember(
   tasks: TasksRepository,
-  requireProjectMember: ReturnType<typeof createRequireProjectMember>,
+  requireProjectMember: ReturnType<typeof createRequireProjectAccess>,
 ) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const row = await tasks.findTaskById(req.params.id as string)
@@ -137,13 +137,13 @@ export function createTasksRouter(deps: TasksRouterDependencies): Router {
   )
   const filtersController = new TaskFiltersController(deps.filtersService)
   const requireAuthMiddleware = requireAuth(deps.config.env.JWT_ACCESS_SECRET)
-  const projectMember = createRequireProjectMember(
+  const projectMember = createRequireProjectAccess(
     deps.projectsRepository,
     deps.organizationsRepository,
   )
   const taskMember = requireTaskMember(
     deps.repository,
-    createRequireProjectMember(deps.projectsRepository, deps.organizationsRepository, (_req, res) =>
+    createRequireProjectAccess(deps.projectsRepository, deps.organizationsRepository, (_req, res) =>
       String((res.locals.task as { projectId: string }).projectId ?? ''),
     ),
   )

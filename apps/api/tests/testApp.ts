@@ -40,6 +40,8 @@ import { PrismaSearchRepository } from '../src/modules/search/search.repository.
 import { SearchService } from '../src/modules/search/search.service.js'
 import { PrismaAnalyticsRepository } from '../src/modules/analytics/analytics.repository.js'
 import { AnalyticsService } from '../src/modules/analytics/analytics.service.js'
+import { PrismaBillingRepository } from '../src/modules/billing/billing.repository.js'
+import { BillingService } from '../src/modules/billing/billing.service.js'
 
 export interface TestAppOptions {
   databaseUp?: boolean
@@ -201,6 +203,14 @@ export function buildTestApp(options: TestAppOptions = {}): BuiltTestApp {
   const taskFiltersService = new TaskFiltersService(new PrismaTaskFiltersRepository(prisma))
   const searchService = new SearchService(new PrismaSearchRepository(prisma))
   const analyticsService = new AnalyticsService(new PrismaAnalyticsRepository(prisma))
+  const billingRepository = new PrismaBillingRepository(prisma)
+  const billingService = new BillingService({
+    repository: billingRepository,
+    organizations: organizationsRepository,
+    defaultPlanKey: 'FREE',
+    checkoutEnabled: false,
+    webAppUrl: config.env.WEB_APP_URL,
+  })
 
   const commentsRepository = new PrismaCommentsRepository(prisma)
   const commentsService = new CommentsService({
@@ -239,6 +249,7 @@ export function buildTestApp(options: TestAppOptions = {}): BuiltTestApp {
     notificationsRepository,
     searchService,
     analyticsService,
+    billingService,
   })
 
   return { app, sentMails, prisma }

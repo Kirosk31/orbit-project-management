@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import {
   PERMISSIONS,
   SYSTEM_ROLE_KEYS,
@@ -164,6 +165,76 @@ async function seedSystemRoles(): Promise<void> {
         permissionId: permission.id,
       })),
       skipDuplicates: true,
+    })
+  }
+}
+
+async function seedBillingPlans(): Promise<void> {
+  const plans = [
+    {
+      key: 'FREE',
+      name: 'Free',
+      priceUSD: new Prisma.Decimal(0),
+      currency: 'USD',
+      maxMembers: 5,
+      maxProjects: 1,
+      maxStorageBytes: BigInt(1_073_741_824),
+      isDefault: true,
+    },
+    {
+      key: 'STARTUP',
+      name: 'Startup',
+      priceUSD: new Prisma.Decimal(29),
+      currency: 'USD',
+      maxMembers: 10,
+      maxProjects: 10,
+      maxStorageBytes: BigInt(5_368_709_120),
+    },
+    {
+      key: 'TEAM',
+      name: 'Team',
+      priceUSD: new Prisma.Decimal(79),
+      currency: 'USD',
+      maxMembers: 25,
+      maxProjects: 50,
+      maxStorageBytes: BigInt(21_474_836_480),
+    },
+    {
+      key: 'BUSINESS',
+      name: 'Business',
+      priceUSD: new Prisma.Decimal(199),
+      currency: 'USD',
+      maxMembers: 100,
+      maxProjects: 500,
+      maxStorageBytes: BigInt(107_374_182_400),
+      customRoles: true,
+      whiteLabel: true,
+      webhooks: true,
+      publicShare: true,
+      auditExport: true,
+    },
+    {
+      key: 'ENTERPRISE',
+      name: 'Enterprise',
+      priceUSD: new Prisma.Decimal(0),
+      currency: 'USD',
+      maxMembers: 1000,
+      maxProjects: 5000,
+      maxStorageBytes: BigInt(1_073_741_824_000),
+      customRoles: true,
+      whiteLabel: true,
+      webhooks: true,
+      publicShare: true,
+      sso: true,
+      auditExport: true,
+    },
+  ]
+
+  for (const plan of plans) {
+    await prisma.billingPlan.upsert({
+      where: { key: plan.key },
+      update: plan,
+      create: plan,
     })
   }
 }
@@ -473,6 +544,8 @@ async function main(): Promise<void> {
   await seedPermissions()
   console.log('Seeding system roles...')
   await seedSystemRoles()
+  console.log('Seeding billing plans...')
+  await seedBillingPlans()
   const sampleDataConfig = readSampleDataConfig()
   if (sampleDataConfig) {
     console.log('Seeding optional sample workspace...')

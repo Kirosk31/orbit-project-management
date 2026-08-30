@@ -97,7 +97,7 @@ export const es = {
         'La presencia autorizada, los eventos del tablero y las notificaciones mantienen sincronizado al equipo conectado.',
     },
     rbac: {
-      title: 'Permisos de nivel empresarial',
+      title: 'Permisos granulares',
       description:
         'Roles de Propietario, Administrador, Manager, Desarrollador y Lector con verificaciones dinámicas por recurso.',
     },

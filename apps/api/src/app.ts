@@ -42,6 +42,7 @@ import type { SearchService } from './modules/search/search.service.js'
 import type { AnalyticsService } from './modules/analytics/analytics.service.js'
 import { createDocsRouter } from './modules/docs/docs.routes.js'
 import { createApiRouter } from './routes.js'
+import type { BillingService } from './modules/billing/billing.service.js'
 
 export interface AppDependencies {
   config: AppConfig
@@ -72,10 +73,13 @@ export interface AppDependencies {
   notificationsRepository: NotificationsRepository
   searchService: SearchService
   analyticsService: AnalyticsService
+  billingService: BillingService
 }
 
 export function createApp(deps: AppDependencies): Express {
   const app = express()
+
+  app.locals.accessSessionValidator = deps.authService
 
   app.disable('x-powered-by')
   if (deps.config.trustProxy !== false) {
@@ -126,6 +130,7 @@ export function createApp(deps: AppDependencies): Express {
       analyticsService: deps.analyticsService,
       rateLimiterService: deps.rateLimiterService,
       auditService: deps.auditService,
+      billingService: deps.billingService,
     }),
   )
 

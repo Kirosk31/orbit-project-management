@@ -11,6 +11,7 @@ import {
   type OrgRoleDto,
   type TeamDto,
   type TeamMemberDto,
+  type TransferOwnershipDto,
   type UpdateMemberRoleDto,
   type UpdateOrganizationDto,
   type UpdateTeamDto,
@@ -18,6 +19,7 @@ import {
 import { conflict, forbidden, notFound, badRequest } from '../../core/errors/index.js'
 import type { Logger } from '../../core/logger/logger.js'
 import type { MailService } from '../../shared/mail/mail.js'
+import type { RealtimePublisher } from '../realtime/realtime.publisher.js'
 import { createInvitationEmail } from '../../shared/mail/templates.js'
 import type { OrganizationsRepository } from './organizations.repository.js'
 
@@ -43,6 +45,8 @@ export interface OrganizationsServiceDependencies {
   logger: Logger
   mailService: MailService
   webAppUrl: string
+  planLimiter?: { assertCanAddMember(orgId: string): Promise<void> }
+  realtime?: Pick<RealtimePublisher, 'disconnectUser'>
 }
 
 export class OrganizationsService {
@@ -116,12 +120,14 @@ export class OrganizationsService {
 
   async listRoles(orgId: string): Promise<OrgRoleDto[]> {
     const roles = await this.deps.repository.listRolesForOrg(orgId)
-    return roles.map((role) => ({
-      id: role.id,
-      key: role.key,
-      name: role.name,
-      isSystem: role.isSystem,
-    }))
+    return roles
+      .filter((role) => role.key !== 'OWNER')
+      .map((role) => ({
+        id: role.id,
+        key: role.key,
+        name: role.name,
+        isSystem: role.isSystem,
+      }))
   }
 
   async updateMemberRole(
@@ -141,8 +147,12 @@ export class OrganizationsService {
     if (!role || (role.orgId !== null && role.orgId !== orgId)) {
       throw badRequest('The selected role is not available in this organization')
     }
+    if (role.key === 'OWNER') {
+      throw forbidden('Ownership cannot be assigned through a member role change')
+    }
 
     await this.deps.repository.updateMemberRole(target.id, dto.roleId)
+    this.deps.realtime?.disconnectUser(targetUserId)
     this.deps.logger.info({ orgId, userId: targetUserId }, 'member role updated')
     return this.toMemberDto({
       ...target,
@@ -161,7 +171,58 @@ export class OrganizationsService {
       throw forbidden('The owner cannot be removed from the organization')
     }
     await this.deps.repository.removeMember(target.id)
+    this.deps.realtime?.disconnectUser(targetUserId)
     this.deps.logger.info({ orgId, userId: targetUserId }, 'member removed')
+  }
+
+  async transferOwnership(
+    orgId: string,
+    currentOwnerId: string,
+    dto: TransferOwnershipDto,
+  ): Promise<void> {
+    const org = await this.deps.repository.findById(orgId)
+    if (!org || org.deletedAt) {
+      throw notFound('Organization not found')
+    }
+    if (org.ownerId !== currentOwnerId) {
+      throw forbidden('Only the current organization owner can transfer ownership')
+    }
+    if (dto.userId === currentOwnerId) {
+      throw badRequest('The target user already owns this organization', { field: 'userId' })
+    }
+
+    const target = await this.deps.repository.findMember(orgId, dto.userId)
+    if (!target) {
+      throw badRequest('The target user must be an active organization member', {
+        field: 'userId',
+      })
+    }
+
+    const [ownerRole, adminRole] = await Promise.all([
+      this.deps.repository.findSystemRoleByKey('OWNER'),
+      this.deps.repository.findSystemRoleByKey('ADMIN'),
+    ])
+    if (!ownerRole || !adminRole) {
+      throw new Error('OWNER and ADMIN roles must be seeded before transferring ownership')
+    }
+
+    const transferred = await this.deps.repository.transferOwnership({
+      orgId,
+      currentOwnerId,
+      targetUserId: dto.userId,
+      ownerRoleId: ownerRole.id,
+      previousOwnerRoleId: adminRole.id,
+    })
+    if (!transferred) {
+      throw conflict('Organization ownership changed before the transfer completed')
+    }
+
+    this.deps.realtime?.disconnectUser(currentOwnerId)
+    this.deps.realtime?.disconnectUser(dto.userId)
+    this.deps.logger.info(
+      { orgId, previousOwnerId: currentOwnerId, ownerId: dto.userId },
+      'organization ownership transferred',
+    )
   }
 
   async inviteMember(
@@ -185,11 +246,16 @@ export class OrganizationsService {
     if (!role || (role.orgId !== null && role.orgId !== orgId)) {
       throw badRequest('The selected role is not available in this organization')
     }
+    if (role.key === 'OWNER') {
+      throw forbidden('Ownership cannot be assigned through an invitation')
+    }
 
     const org = await this.deps.repository.findById(orgId)
     if (!org || org.deletedAt) {
       throw notFound('Organization not found')
     }
+
+    await this.deps.planLimiter?.assertCanAddMember(orgId)
 
     const token = randomBytes(32).toString('base64url')
     const invitation = await this.deps.repository.createInvitation({
@@ -251,6 +317,8 @@ export class OrganizationsService {
       throw notFound('Organization not found')
     }
 
+    await this.deps.planLimiter?.assertCanAddMember(org.id)
+
     const existingMember = await this.deps.repository.findMember(org.id, userId)
     if (existingMember) {
       throw conflict('You are already a member of this organization')
@@ -259,6 +327,10 @@ export class OrganizationsService {
     const role = await this.deps.repository.findRoleById(invitation.roleId)
     if (!role || (role.orgId !== null && role.orgId !== org.id)) {
       throw conflict('The role for this invitation is no longer available')
+    }
+    if (role.key === 'OWNER') {
+      await this.deps.repository.setInvitationStatus(invitation.id, 'REVOKED')
+      throw forbidden('Ownership cannot be assigned through an invitation')
     }
 
     const accepted = await this.deps.repository.acceptInvitation({

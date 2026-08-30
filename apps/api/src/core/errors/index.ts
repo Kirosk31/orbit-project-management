@@ -18,6 +18,10 @@ export function forbidden(message = 'You do not have permission to perform this 
   return new AppError(HttpStatus.FORBIDDEN, ApiErrorCode.FORBIDDEN, message)
 }
 
+export function paymentRequired(message = 'Payment required'): AppError {
+  return new AppError(HttpStatus.PAYMENT_REQUIRED, ApiErrorCode.PAYMENT_REQUIRED, message)
+}
+
 export function notFound(message = 'Resource not found'): AppError {
   return new AppError(HttpStatus.NOT_FOUND, ApiErrorCode.NOT_FOUND, message)
 }

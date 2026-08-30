@@ -73,7 +73,7 @@ export class AuthController {
       respond(res, { success: true })
       return
     }
-    await this.service.logoutAll(req.user.id, req.user.sessionId)
+    await this.service.logoutAll(req.user.id)
     await this.auditService.record({
       ...auditContextFromRequest(req),
       action: 'session.logout_all',

@@ -96,7 +96,7 @@ export const en = {
         'Authorized presence, live board events and notifications keep every connected teammate in sync.',
     },
     rbac: {
-      title: 'Enterprise-grade permissions',
+      title: 'Granular permissions',
       description:
         'Owner, Admin, Manager, Developer and Viewer roles with dynamic, per-resource permission checks.',
     },

@@ -64,6 +64,9 @@ describe('RealtimeService', () => {
   const canSubscribeToProject = vi.fn(
     async (_userId: string, projectId: string) => projectId === ALLOWED_PROJECT_ID,
   )
+  const isSessionActive = vi.fn(
+    async (_userId: string, sessionId: string) => sessionId !== 'revoked-session',
+  )
 
   beforeAll(async () => {
     const config = createConfig(
@@ -83,6 +86,7 @@ describe('RealtimeService', () => {
       config,
       createLogger({ level: 'silent', isProduction: false }),
       { canSubscribeToProject },
+      { isSessionActive },
     )
     await new Promise<void>((resolve) => httpServer.listen(0, '127.0.0.1', resolve))
     const address = httpServer.address()
@@ -100,6 +104,68 @@ describe('RealtimeService', () => {
     clients.push(client)
     const error = await once<Error>(client, 'connect_error')
     expect(error.message).toBe('Missing access token')
+  })
+
+  it('rejects a signed token whose backing session is no longer active', async () => {
+    const client = connect(
+      url,
+      signAccessToken(
+        { sub: 'user-1', sessionId: 'revoked-session', type: 'access' },
+        ACCESS_SECRET,
+        60,
+      ),
+    )
+    clients.push(client)
+
+    const error = await once<Error>(client, 'connect_error')
+
+    expect(error.message).toBe('Invalid or expired session')
+    expect(isSessionActive).toHaveBeenCalledWith('user-1', 'revoked-session')
+  })
+
+  it('disconnects an established socket when its access token expires', async () => {
+    const client = connect(
+      url,
+      signAccessToken(
+        { sub: 'user-expiring', sessionId: 'session-expiring', type: 'access' },
+        ACCESS_SECRET,
+        1,
+      ),
+    )
+    clients.push(client)
+    await waitForConnect(client)
+
+    await expect(once<string>(client, 'disconnect')).resolves.toBe('io server disconnect')
+  })
+
+  it('disconnects established sockets immediately by session or user identity', async () => {
+    const bySession = connect(
+      url,
+      signAccessToken(
+        { sub: 'user-session-revoke', sessionId: 'session-revoke', type: 'access' },
+        ACCESS_SECRET,
+        60,
+      ),
+    )
+    clients.push(bySession)
+    await waitForConnect(bySession)
+    const sessionDisconnect = once<string>(bySession, 'disconnect')
+    realtime.disconnectSession('session-revoke')
+    await expect(sessionDisconnect).resolves.toBe('io server disconnect')
+
+    const byUser = connect(
+      url,
+      signAccessToken(
+        { sub: 'user-revoke', sessionId: 'session-user-revoke', type: 'access' },
+        ACCESS_SECRET,
+        60,
+      ),
+    )
+    clients.push(byUser)
+    await waitForConnect(byUser)
+    const userDisconnect = once<string>(byUser, 'disconnect')
+    realtime.disconnectUser('user-revoke')
+    await expect(userDisconnect).resolves.toBe('io server disconnect')
   })
 
   it('authorizes project rooms, publishes events and tracks presence', async () => {
@@ -184,6 +250,7 @@ describe('RealtimeService', () => {
       config,
       logger,
       { canSubscribeToProject },
+      { isSessionActive: async () => true },
       createAdapter(onePublisher, oneSubscriber, { publishOnSpecificResponseChannel: true }),
     )
     new RealtimeService(
@@ -191,6 +258,7 @@ describe('RealtimeService', () => {
       config,
       logger,
       { canSubscribeToProject },
+      { isSessionActive: async () => true },
       createAdapter(twoPublisher, twoSubscriber, { publishOnSpecificResponseChannel: true }),
     )
     await Promise.all([

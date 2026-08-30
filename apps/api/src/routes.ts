@@ -35,6 +35,8 @@ import { createSearchRouter } from './modules/search/search.routes.js'
 import type { SearchService } from './modules/search/search.service.js'
 import { createAnalyticsRouter } from './modules/analytics/analytics.routes.js'
 import type { AnalyticsService } from './modules/analytics/analytics.service.js'
+import { createBillingRouter } from './modules/billing/billing.routes.js'
+import type { BillingService } from './modules/billing/billing.service.js'
 
 export interface ApiDependencies {
   config: AppConfig
@@ -61,6 +63,7 @@ export interface ApiDependencies {
   auditService: AuditService
   searchService: SearchService
   analyticsService: AnalyticsService
+  billingService: BillingService
 }
 
 export function createApiRouter(deps: ApiDependencies): Router {
@@ -162,6 +165,14 @@ export function createApiRouter(deps: ApiDependencies): Router {
       organizationsRepository: deps.organizationsRepository,
       config: deps.config,
       rateLimiterService: deps.rateLimiterService,
+    }),
+  )
+
+  router.use(
+    createBillingRouter({
+      service: deps.billingService,
+      organizationsRepository: deps.organizationsRepository,
+      config: deps.config,
     }),
   )
 

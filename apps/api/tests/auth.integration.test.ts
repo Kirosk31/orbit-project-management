@@ -3,7 +3,7 @@ import { beforeAll, afterAll, describe, expect, it } from 'vitest'
 import { buildTestApp, isTestDatabaseAvailable, type BuiltTestApp } from './testApp.js'
 
 interface TestSession {
-  get(path: string): Promise<request.Response>
+  get(path: string, token?: string): Promise<request.Response>
   post(path: string, body?: object, token?: string): Promise<request.Response>
 }
 
@@ -32,8 +32,11 @@ function createSession(app: BuiltTestApp): TestSession {
     [...cookies.entries()].map(([name, value]) => `${name}=${value}`).join('; ')
 
   return {
-    async get(path) {
-      const res = await raw.get(path).set('Cookie', cookieHeader())
+    async get(path, token) {
+      const res = await raw
+        .get(path)
+        .set('Cookie', cookieHeader())
+        .set('Authorization', token ? `Bearer ${token}` : '')
       await jar(res)
       return res
     },
@@ -245,5 +248,8 @@ describeDb('auth API', () => {
 
     const refreshed = await session.post('/api/v1/auth/refresh')
     expect(refreshed.status).toBe(401)
+
+    const accessAfterLogout = await session.get('/api/v1/auth/me', login.body.data.accessToken)
+    expect(accessAfterLogout.status).toBe(401)
   })
 })
