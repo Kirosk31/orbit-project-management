@@ -13,6 +13,8 @@ flowchart LR
   API --> PostgreSQL[(PostgreSQL 16)]
   API --> Redis[(Authenticated Redis 7)]
   API --> Uploads[(Private upload volume)]
+  Worker[Outbox worker] --> PostgreSQL
+  Worker --> SMTP[SMTP provider]
   Migrate[One-shot migration job] --> PostgreSQL
   Seed[One-shot RBAC seed] --> PostgreSQL
   Migrate --> Seed --> API
@@ -50,18 +52,19 @@ Use a different output for the PostgreSQL password, Redis password, and JWT sign
 
 Required decisions:
 
-| Variable            | Requirement                                                                          |
-| ------------------- | ------------------------------------------------------------------------------------ |
-| `APP_URL`           | Exact public HTTPS origin, with no path suffix                                       |
-| `WEB_PORT`          | Host port mapped to NGINX; default is `8080`                                         |
-| `POSTGRES_DB`       | Database name                                                                        |
-| `POSTGRES_USER`     | Dedicated application database user                                                  |
-| `POSTGRES_PASSWORD` | Unique random secret                                                                 |
-| `DATABASE_URL`      | Must match the three PostgreSQL values and use host `postgres`                       |
-| `REDIS_PASSWORD`    | Unique random secret                                                                 |
-| `REDIS_URL`         | Must use host `redis` and contain the Redis password                                 |
-| `JWT_ACCESS_SECRET` | At least 32 characters; 48 random bytes are recommended                              |
-| `SMTP_*`            | Provider-specific transport values; optional only when mail delivery is not required |
+| Variable                | Requirement                                                                             |
+| ----------------------- | --------------------------------------------------------------------------------------- |
+| `APP_URL`               | Exact public HTTPS origin, with no path suffix                                          |
+| `WEB_PORT`              | Host port mapped to NGINX; default is `8080`                                            |
+| `POSTGRES_DB`           | Database name                                                                           |
+| `POSTGRES_USER`         | Dedicated application database user                                                     |
+| `POSTGRES_PASSWORD`     | Unique random secret                                                                    |
+| `DATABASE_URL`          | Must match the three PostgreSQL values and use host `postgres`                          |
+| `REDIS_PASSWORD`        | Unique random secret                                                                    |
+| `REDIS_URL`             | Must use host `redis` and contain the Redis password                                    |
+| `JWT_ACCESS_SECRET`     | At least 32 characters; 48 random bytes are recommended                                 |
+| `OUTBOX_ENCRYPTION_KEY` | Exactly 32 random bytes encoded as base64url; never reuse the JWT secret                |
+| `SMTP_*`                | Working provider transport; required for public verification, recovery, and invitations |
 
 Never bake these values into an image, pass them as Vite variables, store them in Git, or paste them into public CI logs. For an orchestrated production platform, inject them from its secret manager rather than a file.
 
@@ -80,7 +83,8 @@ Startup order is enforced:
 2. The migration job applies checked-in migrations.
 3. The seed job creates or updates permission and role reference data without sample accounts.
 4. The API starts and its readiness probe checks both dependencies.
-5. NGINX starts after the API becomes ready.
+5. The outbox worker starts and begins delivering committed email events.
+6. NGINX starts after the API becomes ready.
 
 Verify from outside Docker:
 
@@ -109,7 +113,7 @@ NGINX applies an 11 MB request limit, immutable caching for hashed assets, no-ca
 ## Logs and health
 
 ```bash
-docker compose --env-file .env.production logs --tail=200 api web
+docker compose --env-file .env.production logs --tail=200 api worker web
 docker compose --env-file .env.production ps
 ```
 
@@ -122,6 +126,8 @@ Probe meanings:
 - `/healthz`: NGINX is serving.
 
 An external monitor should probe the public readiness route and a synthetic authenticated flow. Container health alone does not prove that DNS, TLS, email, disk capacity, or browser behavior is healthy.
+
+Monitor the outbox table for `FAILED` events and old `PENDING` events. A growing queue means the worker, database, encryption key, or SMTP provider needs attention. Never inspect or log decrypted payloads during routine operations.
 
 ## Backup and restore
 

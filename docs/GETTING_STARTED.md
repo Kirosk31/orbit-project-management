@@ -62,20 +62,35 @@ node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'
 
 Paste the generated value after `JWT_ACCESS_SECRET=` in `apps/api/.env`. Do not paste it into an issue, screenshot, commit, README, chat, or CI file.
 
+Generate a separate 32-byte outbox encryption key and paste it after `OUTBOX_ENCRYPTION_KEY=`:
+
+```powershell
+node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"
+```
+
 The development values should resolve to:
 
-| Variable          | Development value                                             | Purpose                                  |
-| ----------------- | ------------------------------------------------------------- | ---------------------------------------- |
-| `NODE_ENV`        | `development`                                                 | Development error behavior and cookies   |
-| `PORT`            | `4000`                                                        | API and Socket.IO listener               |
-| `DATABASE_URL`    | `postgresql://orbit:orbit@localhost:5432/orbit?schema=public` | Main development database                |
-| `REDIS_URL`       | `redis://localhost:6379`                                      | Cache, rate limits, and realtime adapter |
-| `CORS_ORIGINS`    | `http://localhost:5173`                                       | Exact trusted browser origin             |
-| `WEB_APP_URL`     | `http://localhost:5173`                                       | Links generated for email flows          |
-| `UPLOAD_DIR`      | `./data/uploads`                                              | Private local file storage               |
-| `EXPOSE_API_DOCS` | `true`                                                        | Swagger UI in development only           |
+| Variable                | Development value                                             | Purpose                                  |
+| ----------------------- | ------------------------------------------------------------- | ---------------------------------------- |
+| `NODE_ENV`              | `development`                                                 | Development error behavior and cookies   |
+| `PORT`                  | `4000`                                                        | API and Socket.IO listener               |
+| `DATABASE_URL`          | `postgresql://orbit:orbit@localhost:5432/orbit?schema=public` | Main development database                |
+| `REDIS_URL`             | `redis://localhost:6379`                                      | Cache, rate limits, and realtime adapter |
+| `CORS_ORIGINS`          | `http://localhost:5173`                                       | Exact trusted browser origin             |
+| `WEB_APP_URL`           | `http://localhost:5173`                                       | Links generated for email flows          |
+| `UPLOAD_DIR`            | `./data/uploads`                                              | Private local file storage               |
+| `OUTBOX_ENCRYPTION_KEY` | generated 32-byte base64url value                             | Encrypts queued email payloads           |
+| `EXPOSE_API_DOCS`       | `true`                                                        | Swagger UI in development only           |
 
 SMTP is optional locally. When `SMTP_HOST` is blank, the mail abstraction logs safe delivery information instead of contacting a mail server. Tokens and passwords are never logged.
+
+Run the email worker in a third terminal when testing verification, recovery, or invitation delivery:
+
+```powershell
+npm.cmd run dev:worker
+```
+
+The API commits email work to PostgreSQL; the worker delivers it asynchronously. Keep the API, web client, and worker running together for complete local behavior.
 
 The web application already defaults to same-origin `/api/v1`. Its Vite server proxies API and Socket.IO requests to port `4000`, so no client-side secret is needed.
 

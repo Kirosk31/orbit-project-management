@@ -38,10 +38,25 @@ export interface AppConfig {
     enabled: boolean
     defaultPlanKey: PlanKey
   }
+  outbox: {
+    pollIntervalMs: number
+    batchSize: number
+    lockTimeoutSeconds: number
+    maxAttempts: number
+  }
 }
 
 export function createConfig(env: Env = parseEnv()): AppConfig {
   const isProduction = env.NODE_ENV === 'production'
+  if (isProduction && !env.OUTBOX_ENCRYPTION_KEY) {
+    throw new Error('OUTBOX_ENCRYPTION_KEY is required in production')
+  }
+  if (
+    env.OUTBOX_ENCRYPTION_KEY &&
+    Buffer.from(env.OUTBOX_ENCRYPTION_KEY, 'base64url').length !== 32
+  ) {
+    throw new Error('OUTBOX_ENCRYPTION_KEY must contain exactly 32 random bytes in base64url form')
+  }
   const authWindowSeconds = env.RATE_LIMIT_AUTH_WINDOW_SECONDS
   const applicationWindowSeconds = env.RATE_LIMIT_APPLICATION_WINDOW_SECONDS
   const trustProxy =
@@ -88,6 +103,12 @@ export function createConfig(env: Env = parseEnv()): AppConfig {
     billing: {
       enabled: env.BILLING_ENABLED === 'true',
       defaultPlanKey: env.BILLING_DEFAULT_PLAN_KEY,
+    },
+    outbox: {
+      pollIntervalMs: env.OUTBOX_POLL_INTERVAL_MS,
+      batchSize: env.OUTBOX_BATCH_SIZE,
+      lockTimeoutSeconds: env.OUTBOX_LOCK_TIMEOUT_SECONDS,
+      maxAttempts: env.OUTBOX_MAX_ATTEMPTS,
     },
   }
 }

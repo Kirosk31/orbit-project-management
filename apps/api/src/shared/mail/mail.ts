@@ -68,9 +68,18 @@ export class ConsoleMailService implements MailService {
   }
 }
 
+export class UnavailableMailService implements MailService {
+  async sendMail(_options: SendMailOptions): Promise<void> {
+    throw new Error('Email delivery is not configured')
+  }
+}
+
 export function createMailService(config: AppConfig, logger: Logger): MailService {
   if (config.env.SMTP_HOST) {
     return new SmtpMailService(config, logger)
+  }
+  if (config.isProduction) {
+    return new UnavailableMailService()
   }
   return new ConsoleMailService(logger)
 }

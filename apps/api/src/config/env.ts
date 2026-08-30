@@ -49,6 +49,11 @@ const envSchema = z.object({
   EMAIL_VERIFICATION_TTL_HOURS: z.coerce.number().int().min(1).default(24),
   PASSWORD_RESET_TTL_HOURS: z.coerce.number().int().min(1).default(1),
   WEB_APP_URL: z.url().default('http://localhost:5173'),
+  OUTBOX_ENCRYPTION_KEY: z.string().trim().default(''),
+  OUTBOX_POLL_INTERVAL_MS: z.coerce.number().int().min(100).max(60_000).default(1_000),
+  OUTBOX_BATCH_SIZE: z.coerce.number().int().min(1).max(100).default(20),
+  OUTBOX_LOCK_TIMEOUT_SECONDS: z.coerce.number().int().min(10).max(3_600).default(60),
+  OUTBOX_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(25).default(8),
   BILLING_ENABLED: z.enum(['true', 'false']).optional().default('false'),
   BILLING_DEFAULT_PLAN_KEY: z
     .enum(PLAN_KEYS as [PlanKey, ...PlanKey[]])

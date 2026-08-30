@@ -1,4 +1,6 @@
 import type { PrismaClient, RefreshToken, Session, User } from '@prisma/client'
+import type { PreparedOutboxEvent } from '../../shared/outbox/outbox.crypto.js'
+import { insertOutboxEvent } from '../../shared/outbox/outbox.repository.js'
 
 export interface SessionContext {
   ipAddress?: string
@@ -43,6 +45,8 @@ export interface AuthRepository {
     userId: string
     tokenHash: string
     expiresAt: Date
+    invalidateExisting?: boolean
+    outboxEvent?: PreparedOutboxEvent
   }): Promise<void>
   invalidatePendingVerificationTokens(userId: string): Promise<void>
   consumeEmailVerificationToken(tokenHash: string): Promise<{ userId: string } | null>
@@ -50,6 +54,7 @@ export interface AuthRepository {
     userId: string
     tokenHash: string
     expiresAt: Date
+    outboxEvent?: PreparedOutboxEvent
   }): Promise<void>
   consumePasswordResetToken(
     tokenHash: string,
@@ -235,13 +240,26 @@ export class PrismaAuthRepository implements AuthRepository {
     userId: string
     tokenHash: string
     expiresAt: Date
+    invalidateExisting?: boolean
+    outboxEvent?: PreparedOutboxEvent
   }): Promise<void> {
-    await this.prisma.emailVerificationToken.create({
-      data: {
-        userId: input.userId,
-        tokenHash: input.tokenHash,
-        expiresAt: input.expiresAt,
-      },
+    await this.prisma.$transaction(async (transaction) => {
+      if (input.invalidateExisting) {
+        await transaction.emailVerificationToken.updateMany({
+          where: { userId: input.userId, usedAt: null },
+          data: { usedAt: new Date() },
+        })
+      }
+      await transaction.emailVerificationToken.create({
+        data: {
+          userId: input.userId,
+          tokenHash: input.tokenHash,
+          expiresAt: input.expiresAt,
+        },
+      })
+      if (input.outboxEvent) {
+        await insertOutboxEvent(transaction, input.outboxEvent)
+      }
     })
   }
 
@@ -283,13 +301,19 @@ export class PrismaAuthRepository implements AuthRepository {
     userId: string
     tokenHash: string
     expiresAt: Date
+    outboxEvent?: PreparedOutboxEvent
   }): Promise<void> {
-    await this.prisma.passwordResetToken.create({
-      data: {
-        userId: input.userId,
-        tokenHash: input.tokenHash,
-        expiresAt: input.expiresAt,
-      },
+    await this.prisma.$transaction(async (transaction) => {
+      await transaction.passwordResetToken.create({
+        data: {
+          userId: input.userId,
+          tokenHash: input.tokenHash,
+          expiresAt: input.expiresAt,
+        },
+      })
+      if (input.outboxEvent) {
+        await insertOutboxEvent(transaction, input.outboxEvent)
+      }
     })
   }
 

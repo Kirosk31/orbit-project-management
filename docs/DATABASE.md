@@ -12,6 +12,8 @@ Orbit uses PostgreSQL 16 through Prisma 7. PostgreSQL is the source of truth; Re
 | Planning           | `Board`, `SavedFilter`, `TaskStatus`, `Column`, `Task`                                                        |
 | Task resources     | `TaskAssignee`, `Label`, `TaskLabel`, `Checklist`, `ChecklistItem`, `Attachment`, `TaskActivity`, `TimeEntry` |
 | Collaboration      | `Comment`, `CommentReaction`, `CommentMention`, `Notification`, `ActivityLog`, `AuditLog`                     |
+| Commercial         | `BillingPlan`, `Subscription`                                                                                 |
+| Operations         | `OutboxEvent`                                                                                                 |
 
 The detailed relationship diagram is in [er-diagram.md](er-diagram.md).
 
@@ -30,6 +32,7 @@ Search uses one parameterized bounded query, but every union branch includes its
 - Refresh, verification, and recovery token consumption is atomic so a token cannot succeed twice under concurrent requests.
 - Time tracking uses row locks and transactional checks to allow at most one running timer per user.
 - Multi-step domain mutations use Prisma transactions where partial completion would violate an invariant.
+- Verification, password-recovery, and invitation records commit with an encrypted outbox event; workers use `FOR UPDATE SKIP LOCKED` leases for safe horizontal processing.
 - Audit records preserve the actor identifier even if the user is later deleted.
 
 ## Migration policy

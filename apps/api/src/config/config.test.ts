@@ -34,9 +34,28 @@ describe('application configuration', () => {
   })
 
   it('hides API documentation by default in production', () => {
-    const config = createConfig(parseEnv(validEnv({ NODE_ENV: 'production' })))
+    const config = createConfig(
+      parseEnv(
+        validEnv({
+          NODE_ENV: 'production',
+          OUTBOX_ENCRYPTION_KEY: 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY',
+        }),
+      ),
+    )
 
     expect(config.exposeApiDocs).toBe(false)
+  })
+
+  it('requires a dedicated outbox encryption key in production', () => {
+    expect(() => createConfig(parseEnv(validEnv({ NODE_ENV: 'production' })))).toThrow(
+      'OUTBOX_ENCRYPTION_KEY is required in production',
+    )
+  })
+
+  it('rejects an outbox encryption key with the wrong length', () => {
+    expect(() => createConfig(parseEnv(validEnv({ OUTBOX_ENCRYPTION_KEY: 'too-short' })))).toThrow(
+      'OUTBOX_ENCRYPTION_KEY must contain exactly 32 random bytes in base64url form',
+    )
   })
 
   it('uses independent authentication rate-limit policies', () => {

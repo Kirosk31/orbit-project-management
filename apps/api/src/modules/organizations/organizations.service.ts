@@ -19,6 +19,7 @@ import {
 import { conflict, forbidden, notFound, badRequest } from '../../core/errors/index.js'
 import type { Logger } from '../../core/logger/logger.js'
 import type { MailService } from '../../shared/mail/mail.js'
+import type { OutboxEventCodec } from '../../shared/outbox/outbox.crypto.js'
 import type { RealtimePublisher } from '../realtime/realtime.publisher.js'
 import { createInvitationEmail } from '../../shared/mail/templates.js'
 import type { OrganizationsRepository } from './organizations.repository.js'
@@ -44,6 +45,7 @@ export interface OrganizationsServiceDependencies {
   repository: OrganizationsRepository
   logger: Logger
   mailService: MailService
+  outboxCodec?: OutboxEventCodec
   webAppUrl: string
   planLimiter?: { assertCanAddMember(orgId: string): Promise<void> }
   realtime?: Pick<RealtimePublisher, 'disconnectUser'>
@@ -258,6 +260,14 @@ export class OrganizationsService {
     await this.deps.planLimiter?.assertCanAddMember(orgId)
 
     const token = randomBytes(32).toString('base64url')
+    const emailOptions = {
+      to: { address: email },
+      ...createInvitationEmail({ appUrl: this.deps.webAppUrl, organizationName: org.name }, token),
+    }
+    const outboxEvent = this.deps.outboxCodec?.prepareEmail(emailOptions, {
+      type: 'ORGANIZATION',
+      id: orgId,
+    })
     const invitation = await this.deps.repository.createInvitation({
       orgId,
       inviterId,
@@ -265,23 +275,20 @@ export class OrganizationsService {
       roleId: dto.roleId,
       tokenHash: hashToken(token),
       expiresAt: new Date(Date.now() + INVITATION_TTL_MS),
+      outboxEvent,
     })
 
-    try {
-      await this.deps.mailService.sendMail({
-        to: { address: email },
-        ...createInvitationEmail(
-          { appUrl: this.deps.webAppUrl, organizationName: org.name },
-          token,
-        ),
-      })
-    } catch (error) {
-      await this.deps.repository.setInvitationStatus(invitation.id, 'REVOKED')
-      this.deps.logger.error(
-        { error, orgId, invitationId: invitation.id },
-        'invitation email failed',
-      )
-      throw new Error('Invitation email could not be delivered', { cause: error })
+    if (!outboxEvent) {
+      try {
+        await this.deps.mailService.sendMail(emailOptions)
+      } catch (error) {
+        await this.deps.repository.setInvitationStatus(invitation.id, 'REVOKED')
+        this.deps.logger.error(
+          { error, orgId, invitationId: invitation.id },
+          'invitation email failed',
+        )
+        throw new Error('Invitation email could not be delivered', { cause: error })
+      }
     }
 
     this.deps.logger.info({ orgId, invitationId: invitation.id }, 'invitation created')

@@ -6,6 +6,7 @@ import { conflict, forbidden, unauthorized } from '../../core/errors/index.js'
 import type { Logger } from '../../core/logger/logger.js'
 import { generateOpaqueToken, hashToken, signAccessToken } from '../../core/security/tokens.js'
 import type { MailService } from '../../shared/mail/mail.js'
+import type { OutboxEventCodec } from '../../shared/outbox/outbox.crypto.js'
 import type { RealtimePublisher } from '../realtime/realtime.publisher.js'
 import { createPasswordResetEmail, createVerificationEmail } from '../../shared/mail/templates.js'
 import type { AuthRepository, SessionContext } from './auth.repository.js'
@@ -28,6 +29,7 @@ export interface AuthServiceDependencies {
   repository: AuthRepository
   config: AppConfig
   mailService: MailService
+  outboxCodec?: OutboxEventCodec
   logger: Logger
   realtime?: Pick<RealtimePublisher, 'disconnectSession' | 'disconnectUser'>
 }
@@ -178,8 +180,7 @@ export class AuthService {
     const user = await this.deps.repository.findByEmail(email.toLowerCase())
 
     if (user && !user.isEmailVerified && user.isActive) {
-      await this.deps.repository.invalidatePendingVerificationTokens(user.id)
-      await this.sendVerificationEmail(user)
+      await this.sendVerificationEmail(user, true)
     }
   }
 
@@ -192,13 +193,7 @@ export class AuthService {
         Date.now() + this.deps.config.env.PASSWORD_RESET_TTL_HOURS * 3_600_000,
       )
 
-      await this.deps.repository.createPasswordResetToken({
-        userId: user.id,
-        tokenHash: hashToken(token),
-        expiresAt,
-      })
-
-      await this.deps.mailService.sendMail({
+      const emailOptions = {
         to: { address: user.email, name: user.fullName },
         ...createPasswordResetEmail(
           {
@@ -207,7 +202,22 @@ export class AuthService {
           },
           token,
         ),
+      }
+      const outboxEvent = this.deps.outboxCodec?.prepareEmail(emailOptions, {
+        type: 'USER',
+        id: user.id,
       })
+
+      await this.deps.repository.createPasswordResetToken({
+        userId: user.id,
+        tokenHash: hashToken(token),
+        expiresAt,
+        outboxEvent,
+      })
+
+      if (!outboxEvent) {
+        await this.deps.mailService.sendMail(emailOptions)
+      }
     }
   }
 
@@ -296,23 +306,20 @@ export class AuthService {
     this.deps.realtime?.disconnectSession(sessionId)
   }
 
-  private async sendVerificationEmail(user: {
-    email: string
-    fullName: string
-    id: string
-  }): Promise<void> {
+  private async sendVerificationEmail(
+    user: {
+      email: string
+      fullName: string
+      id: string
+    },
+    invalidateExisting = false,
+  ): Promise<void> {
     const token = generateOpaqueToken()
     const expiresAt = new Date(
       Date.now() + this.deps.config.env.EMAIL_VERIFICATION_TTL_HOURS * 3_600_000,
     )
 
-    await this.deps.repository.createEmailVerificationToken({
-      userId: user.id,
-      tokenHash: hashToken(token),
-      expiresAt,
-    })
-
-    await this.deps.mailService.sendMail({
+    const emailOptions = {
       to: { address: user.email, name: user.fullName },
       ...createVerificationEmail(
         {
@@ -321,7 +328,23 @@ export class AuthService {
         },
         token,
       ),
+    }
+    const outboxEvent = this.deps.outboxCodec?.prepareEmail(emailOptions, {
+      type: 'USER',
+      id: user.id,
     })
+
+    await this.deps.repository.createEmailVerificationToken({
+      userId: user.id,
+      tokenHash: hashToken(token),
+      expiresAt,
+      invalidateExisting,
+      outboxEvent,
+    })
+
+    if (!outboxEvent) {
+      await this.deps.mailService.sendMail(emailOptions)
+    }
   }
 
   private toUserDto(user: {

@@ -12,7 +12,9 @@ flowchart LR
   API -->|Prisma + parameterized SQL| DB[(PostgreSQL)]
   API -->|cache, limits, pub/sub| Redis[(Redis)]
   API --> Files[(Private storage)]
-  API --> Mail[SMTP abstraction]
+  API -->|transactional events| DB
+  Worker[Outbox worker] -->|claim with SKIP LOCKED| DB
+  Worker --> Mail[SMTP provider]
 ```
 
 The browser is never a security boundary. It may hide unavailable actions for usability, but the API repeats identity, tenant, membership, resource, and permission checks.
@@ -50,6 +52,8 @@ request
 - Infrastructure interfaces isolate mail, storage, cache, rate limiting, auditing, and realtime publication.
 
 Feature modules include authentication, users, organizations, projects, boards, tasks and task resources, comments, notifications, search, analytics, health, documentation, and realtime authorization.
+
+Authentication and invitation emails use an encrypted transactional outbox. The domain token and its delivery event commit together. A separate worker claims bounded batches with PostgreSQL row locks, retries with exponential backoff, recovers stale leases, and redacts stored provider failures. Delivery is at least once: an SMTP provider can accept a message immediately before a worker crash, so operators should expect rare duplicate transactional emails.
 
 ## Frontend architecture
 
@@ -95,6 +99,7 @@ The Compose deployment uses a private volume. Multi-host deployments must supply
 - Pino JSON logs in production with request correlation IDs and sensitive-header redaction
 - `/health` liveness and dependency-aware `/health/ready`
 - Dependency connection retries and graceful `SIGINT`/`SIGTERM` shutdown
+- Encrypted transactional email outbox with a separately scalable worker
 - Durable `AuditLog` entries for sensitive security and administrative actions
 - Domain activity streams for user-visible project/task history
 - Docker health checks and startup dependency ordering

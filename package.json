@@ -19,6 +19,7 @@
   },
   "scripts": {
     "dev:api": "npm run dev -w @orbit/api",
+    "dev:worker": "npm run dev:worker -w @orbit/api",
     "dev:web": "npm run dev -w @orbit/web",
     "build": "npm run build --workspaces --if-present",
     "lint": "eslint .",

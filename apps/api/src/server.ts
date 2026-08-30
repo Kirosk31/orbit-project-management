@@ -6,6 +6,7 @@ import { createLogger, type Logger } from './core/logger/logger.js'
 import { RedisCacheService } from './shared/cache/CacheService.js'
 import { getPrisma, disconnectPrisma } from './shared/database/prisma.js'
 import { createMailService } from './shared/mail/mail.js'
+import { OutboxEventCodec } from './shared/outbox/outbox.crypto.js'
 import { RateLimiterService } from './shared/ratelimit/rateLimit.js'
 import { createRedisConnection, getRedis, closeRedis } from './shared/redis/redis.js'
 import { createStorageService } from './shared/storage/storage.js'
@@ -108,6 +109,11 @@ async function bootstrap(): Promise<void> {
 
   const cacheService = new RedisCacheService(redis)
   const mailService = createMailService(config, logger)
+  const outboxCodec = new OutboxEventCodec(
+    config.env.OUTBOX_ENCRYPTION_KEY,
+    config.env.JWT_ACCESS_SECRET,
+    config.outbox.maxAttempts,
+  )
   const storageService = createStorageService(config, logger)
   const rateLimiterService = new RateLimiterService(redis, logger)
   const auditService = new PrismaAuditService(prisma)
@@ -117,6 +123,7 @@ async function bootstrap(): Promise<void> {
     repository: authRepository,
     config,
     mailService,
+    outboxCodec,
     logger,
     realtime: realtimePublisher,
   })
@@ -139,6 +146,7 @@ async function bootstrap(): Promise<void> {
     repository: organizationsRepository,
     logger,
     mailService,
+    outboxCodec,
     webAppUrl: config.env.WEB_APP_URL,
     planLimiter,
     realtime: realtimePublisher,

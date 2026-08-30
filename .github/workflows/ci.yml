@@ -172,7 +172,7 @@ jobs:
         run: docker compose --env-file .env.production.example config --quiet
 
       - name: Build production images
-        run: COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file .env.production.example build api web migrate seed
+        run: COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file .env.production.example build api worker web migrate seed
 
   secrets:
     name: Secret scanning

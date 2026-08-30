@@ -7,6 +7,8 @@ import type {
   Team,
   TeamMember,
 } from '@prisma/client'
+import type { PreparedOutboxEvent } from '../../shared/outbox/outbox.crypto.js'
+import { insertOutboxEvent } from '../../shared/outbox/outbox.repository.js'
 
 export interface OrgMembership extends OrganizationMember {
   role: {
@@ -104,6 +106,7 @@ export interface OrganizationsRepository {
     roleId: string
     tokenHash: string
     expiresAt: Date
+    outboxEvent?: PreparedOutboxEvent
   }): Promise<Invitation>
   findInvitationById(orgId: string, invitationId: string): Promise<Invitation | null>
   findInvitationByEmail(orgId: string, email: string): Promise<Invitation | null>
@@ -461,8 +464,18 @@ export class PrismaOrganizationsRepository implements OrganizationsRepository {
     roleId: string
     tokenHash: string
     expiresAt: Date
+    outboxEvent?: PreparedOutboxEvent
   }) {
-    return this.prisma.invitation.create({ data })
+    const { outboxEvent, ...invitationData } = data
+    if (!outboxEvent) {
+      return this.prisma.invitation.create({ data: invitationData })
+    }
+
+    return this.prisma.$transaction(async (transaction) => {
+      const invitation = await transaction.invitation.create({ data: invitationData })
+      await insertOutboxEvent(transaction, outboxEvent)
+      return invitation
+    })
   }
 
   findInvitationById(orgId: string, invitationId: string) {
