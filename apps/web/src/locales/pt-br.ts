@@ -471,6 +471,12 @@ export const ptBR = {
     dragHint: 'Arraste as colunas para reordenar',
     maxTasks: 'máx. {{count}}',
     overLimit: 'acima do limite de WIP',
+    viewMode: 'Visualização do quadro',
+    viewKanban: 'Kanban',
+    viewList: 'Lista',
+    listEmpty: 'Nenhuma tarefa para mostrar',
+    listView: 'Lista de tarefas',
+    unassigned: 'Sem responsável',
   },
   tasks: {
     title: 'Tarefas',

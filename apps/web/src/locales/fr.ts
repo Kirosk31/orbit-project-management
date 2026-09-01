@@ -472,6 +472,12 @@ export const fr = {
     dragHint: 'Faites glisser les colonnes pour les réordonner',
     maxTasks: '{{count}} max.',
     overLimit: 'limite de travaux en cours dépassée',
+    viewMode: 'Vue du tableau',
+    viewKanban: 'Kanban',
+    viewList: 'Liste',
+    listEmpty: 'Aucune tâche à afficher',
+    listView: 'Liste des tâches',
+    unassigned: 'Non affecté',
   },
   tasks: {
     title: 'Tâches',

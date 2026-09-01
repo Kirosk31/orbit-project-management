@@ -467,6 +467,12 @@ export const en = {
     dragHint: 'Drag columns to reorder',
     maxTasks: 'max {{count}}',
     overLimit: 'over WIP limit',
+    viewMode: 'Board view',
+    viewKanban: 'Kanban',
+    viewList: 'List',
+    listEmpty: 'No tasks to show',
+    listView: 'Task list',
+    unassigned: 'Unassigned',
   },
   tasks: {
     title: 'Tasks',

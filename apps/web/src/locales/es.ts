@@ -469,6 +469,12 @@ export const es = {
     dragHint: 'Arrastra las columnas para reordenarlas',
     maxTasks: 'máx. {{count}}',
     overLimit: 'sobre el límite WIP',
+    viewMode: 'Vista del tablero',
+    viewKanban: 'Kanban',
+    viewList: 'Lista',
+    listEmpty: 'No hay tareas para mostrar',
+    listView: 'Lista de tareas',
+    unassigned: 'Sin asignar',
   },
   tasks: {
     title: 'Tareas',
