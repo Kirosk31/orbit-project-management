@@ -326,6 +326,8 @@ export const fr = {
     avatarRemoved: 'Avatar supprimé',
     avatarTooLarge: "L'avatar doit faire 2 Mo maximum",
     invalidAvatar: "L'avatar doit être une image JPEG, PNG ou WebP",
+    searchOrJump: 'Rechercher ou aller à…',
+    accountMenu: 'Menu du compte',
   },
   org: {
     title: 'Organisations',

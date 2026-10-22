@@ -5,30 +5,44 @@ import { cn } from '@/lib/utils'
 interface LogoProps {
   className?: string
   wordmark?: boolean
+  /** "rail" sets the wordmark for the cobalt navigation rail. */
+  tone?: 'default' | 'rail'
 }
 
 /**
- * Orbit brand mark: a gradient ring with an orbiting core.
+ * Orbit brand mark: one glazed azulejo tile carrying a quarter-circle orbit
+ * and an ochre planet. The tile takes the tenant's brand color.
  */
-export function Logo({ className, wordmark = true }: LogoProps): ReactNode {
+export function Logo({ className, wordmark = true, tone = 'default' }: LogoProps): ReactNode {
   return (
     <span className={cn('inline-flex items-center gap-2.5', className)}>
-      <span className="relative inline-flex size-7 items-center justify-center" aria-hidden>
-        <svg viewBox="0 0 32 32" className="size-7" fill="none">
-          <defs>
-            <linearGradient id="orbit-brand" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="oklch(0.646 0.222 41.116)" />
-              <stop offset="100%" stopColor="oklch(0.707 0.165 254.624)" />
-            </linearGradient>
-          </defs>
-          <circle cx="16" cy="16" r="11.5" stroke="url(#orbit-brand)" strokeWidth="2.25" />
-          <g className="animate-orbit-spin" style={{ transformOrigin: '16px 16px' }}>
-            <circle cx="27.5" cy="16" r="2.25" fill="url(#orbit-brand)" />
-          </g>
-          <circle cx="16" cy="16" r="4" fill="url(#orbit-brand)" />
-        </svg>
-      </span>
-      {wordmark && <span className="text-lg font-semibold tracking-tight">Orbit</span>}
+      <svg viewBox="0 0 32 32" className="size-7 shrink-0" aria-hidden="true">
+        <rect
+          width="32"
+          height="32"
+          rx="7"
+          fill={tone === 'rail' ? 'var(--rail-accent)' : 'var(--brand-tile)'}
+        />
+        <path d="M6 26a6 6 0 0 1 6-6v6z" fill="var(--brand-glaze)" />
+        <path
+          d="M6 9a17 17 0 0 1 17 17"
+          fill="none"
+          stroke="var(--brand-glaze)"
+          strokeWidth="2.5"
+        />
+        <circle cx="18.02" cy="13.98" r="3.2" fill="var(--ochre)" />
+      </svg>
+      {wordmark && (
+        <span
+          className={cn(
+            'text-[1.0625rem] font-[650] tracking-[-0.01em]',
+            tone === 'rail' ? 'text-rail-foreground' : 'text-foreground',
+          )}
+          style={{ fontStretch: '112%' }}
+        >
+          Orbit
+        </span>
+      )}
     </span>
   )
 }

@@ -325,6 +325,8 @@ export const ptBR = {
     avatarRemoved: 'Avatar removido',
     avatarTooLarge: 'O avatar deve ter no máximo 2 MB',
     invalidAvatar: 'O avatar deve ser uma imagem JPEG, PNG ou WebP',
+    searchOrJump: 'Buscar ou ir para…',
+    accountMenu: 'Menu da conta',
   },
   org: {
     title: 'Organizações',

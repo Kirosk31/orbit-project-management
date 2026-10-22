@@ -4,7 +4,6 @@ import { BellIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { formatRelativeTime } from '@/lib/utils'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,18 +55,23 @@ export function NotificationsDropdown(): React.ReactElement {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button type="button" className="relative" aria-label={t('notifications.openMenu')}>
-          <BellIcon className="size-5" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative"
+          aria-label={t('notifications.openMenu')}
+        >
+          <BellIcon />
           {unreadCount > 0 ? (
-            <span className="absolute -right-2 -top-2 rounded-full bg-destructive/90 text-white text-[10px] px-1.5 py-0.5">
-              {unreadCount}
+            <span className="absolute top-1 right-0.5 min-w-4 rounded-sm bg-ochre px-1 text-[0.625rem] leading-4 font-semibold text-warning-foreground tabular-nums">
+              {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           ) : null}
-        </button>
+        </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[320px]">
-        <div className="flex items-center justify-between px-3 py-2">
-          <strong>{t('notifications.title')}</strong>
+      <DropdownMenuContent align="end" className="w-[22rem]">
+        <div className="flex items-center justify-between py-1 pr-1 pl-3">
+          <p className="text-sm font-semibold">{t('notifications.title')}</p>
           <Button size="sm" variant="ghost" onClick={() => markAll.mutate()}>
             {t('notifications.markAll')}
           </Button>
@@ -88,7 +92,7 @@ export function NotificationsDropdown(): React.ReactElement {
                 return (
                   <li key={n.id}>
                     <DropdownMenuItem
-                      className={`flex items-start gap-2 px-3 py-2 ${n.isRead ? 'opacity-70' : ''}`}
+                      className="flex items-start gap-2.5 px-3 py-2.5"
                       onSelect={() => {
                         if (!n.isRead) markRead.mutate(n.id)
                         if (n.linkUrl) {
@@ -96,13 +100,18 @@ export function NotificationsDropdown(): React.ReactElement {
                         }
                       }}
                     >
-                      <Avatar className="size-7">
-                        <AvatarFallback className="text-xs">N</AvatarFallback>
-                      </Avatar>
+                      <span
+                        className={`mt-1.5 size-2 shrink-0 rounded-[2px] ${n.isRead ? 'bg-border' : 'bg-primary'}`}
+                        aria-hidden="true"
+                      />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
-                          <div className="truncate text-sm font-medium">{copy.title}</div>
-                          <div className="text-muted-foreground text-xs">
+                          <div
+                            className={`truncate text-sm ${n.isRead ? 'text-muted-foreground' : 'font-medium'}`}
+                          >
+                            {copy.title}
+                          </div>
+                          <div className="shrink-0 text-xs text-muted-foreground tabular-nums">
                             {formatRelativeTime(n.createdAt, i18n.language)}
                           </div>
                         </div>
@@ -117,8 +126,13 @@ export function NotificationsDropdown(): React.ReactElement {
             </ul>
           )}
         </div>
-        <div className="px-3 py-2">
-          <Button size="sm" variant="outline" onClick={() => navigate('/app/notifications')}>
+        <div className="border-t p-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="w-full justify-center"
+            onClick={() => navigate('/app/notifications')}
+          >
             {t('notifications.viewAll')}
           </Button>
         </div>

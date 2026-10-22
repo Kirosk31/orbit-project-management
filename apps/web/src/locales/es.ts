@@ -325,6 +325,8 @@ export const es = {
     avatarRemoved: 'Avatar eliminado',
     avatarTooLarge: 'El avatar debe pesar 2 MB o menos',
     invalidAvatar: 'El avatar debe ser una imagen JPEG, PNG o WebP',
+    searchOrJump: 'Buscar o ir a…',
+    accountMenu: 'Menú de la cuenta',
   },
   org: {
     title: 'Organizaciones',

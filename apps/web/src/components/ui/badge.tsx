@@ -5,16 +5,19 @@ import * as React from 'react'
 import { cn } from '@/lib/utils'
 
 const badgeVariants = cva(
-  'inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden whitespace-nowrap rounded-md border px-2 py-0.5 text-xs font-medium transition-colors [&>svg]:pointer-events-none [&>svg]:size-3',
+  'inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden whitespace-nowrap rounded-sm border px-1.5 py-px text-xs font-medium tabular-nums transition-colors [&>svg]:pointer-events-none [&>svg]:size-3',
   {
     variants: {
       variant: {
-        default: 'border-transparent bg-primary text-primary-foreground',
-        secondary: 'border-transparent bg-secondary text-secondary-foreground',
-        destructive: 'border-transparent bg-destructive text-white',
-        outline: 'text-foreground',
-        success: 'border-transparent bg-success/15 text-success',
-        warning: 'border-transparent bg-warning/15 text-warning',
+        default: 'border-transparent bg-accent text-accent-foreground',
+        secondary: 'border-transparent bg-secondary text-muted-foreground',
+        destructive:
+          'border-transparent bg-[color-mix(in_oklch,var(--destructive)_14%,transparent)] text-[color-mix(in_oklch,var(--destructive)_80%,var(--foreground))]',
+        outline: 'border-border text-muted-foreground',
+        success:
+          'border-transparent bg-[color-mix(in_oklch,var(--success)_14%,transparent)] text-[color-mix(in_oklch,var(--success)_82%,var(--foreground))]',
+        warning:
+          'border-transparent bg-[color-mix(in_oklch,var(--ochre)_24%,transparent)] text-ochre-ink',
       },
     },
     defaultVariants: {

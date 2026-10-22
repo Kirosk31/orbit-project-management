@@ -323,6 +323,8 @@ export const en = {
     avatarRemoved: 'Avatar removed',
     avatarTooLarge: 'Avatar must be 2 MB or smaller',
     invalidAvatar: 'Avatar must be a JPEG, PNG or WebP image',
+    searchOrJump: 'Search or jump to…',
+    accountMenu: 'Account menu',
   },
   org: {
     title: 'Organizations',
