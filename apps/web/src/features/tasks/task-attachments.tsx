@@ -125,7 +125,11 @@ export function TaskAttachments({ taskId }: { taskId: string }): ReactNode {
             />
             <p className="text-muted-foreground mt-1 text-xs">{t('tasks.attachmentHelp')}</p>
           </div>
-          <Button type="submit" disabled={!selectedFile || uploadMutation.isPending}>
+          <Button
+            type="submit"
+            variant="secondary"
+            disabled={!selectedFile || uploadMutation.isPending}
+          >
             <UploadIcon />
             {t('tasks.uploadAttachment')}
           </Button>

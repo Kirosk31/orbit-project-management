@@ -2,20 +2,16 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { createLabelSchema } from '@orbit/shared'
 import type { updateTaskSchema } from '@orbit/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { motion } from 'framer-motion'
 import {
   ArchiveIcon,
   ArrowLeftIcon,
-  CalendarIcon,
   CheckIcon,
-  CircleDotIcon,
-  FlagIcon,
-  HistoryIcon,
+  PencilIcon,
   PlusIcon,
-  RotateCcwIcon,
   TagIcon,
   Trash2Icon,
   UserPlusIcon,
-  UsersIcon,
   XIcon,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -26,10 +22,11 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import type { z } from 'zod'
 
+import { ColorSwatchPicker } from '@/components/shared/color-swatch-picker'
+import { EmptyState, PageContainer } from '@/components/shared/page'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -37,8 +34,14 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -72,17 +75,12 @@ import { TaskChecklists } from '@/features/tasks/task-checklists'
 import { TaskTimeTracking } from '@/features/tasks/task-time-tracking'
 import { TaskAttachments } from '@/features/tasks/task-attachments'
 import { useProjectRealtime } from '@/features/realtime/use-project-realtime'
-import { formatRelativeTime, getContrastTextColor, initialsOf } from '@/lib/utils'
+import { DueDate, PriorityMark } from '@/features/tasks/task-meta'
+import { COLUMN_COLORS } from '@/lib/task-colors'
+import { cn, formatRelativeTime, initialsOf } from '@/lib/utils'
 
 const PRIORITIES = ['NONE', 'LOW', 'MEDIUM', 'HIGH', 'URGENT'] as const
-const PRIORITY_COLORS: Record<string, string> = {
-  NONE: '#94a3b8',
-  LOW: '#10b981',
-  MEDIUM: '#f59e0b',
-  HIGH: '#ef4444',
-  URGENT: '#7c3aed',
-}
-const LABEL_COLORS = ['#94a3b8', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#a855f7']
+const LABEL_COLORS = COLUMN_COLORS
 
 const ACTIVITY_LABELS = {
   'task.created': 'tasks.activityCreated',
@@ -245,27 +243,29 @@ export function TaskDetailPage(): ReactNode {
 
   if (taskQuery.isPending) {
     return (
-      <div className="mx-auto w-full max-w-4xl p-6">
-        <Skeleton className="h-10 w-1/2" />
-        <Skeleton className="mt-6 h-64 w-full" />
-      </div>
+      <PageContainer width="wide">
+        <Skeleton className="h-4 w-28" />
+        <Skeleton className="mt-4 h-9 w-2/3" />
+        <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_18rem]">
+          <Skeleton className="h-64" />
+          <Skeleton className="h-80" />
+        </div>
+      </PageContainer>
     )
   }
 
   if (taskQuery.isError || !task) {
     return (
-      <div className="mx-auto w-full max-w-4xl p-6">
-        <Card>
-          <CardHeader className="items-center text-center">
-            <CardTitle>{t('org.permissionDenied')}</CardTitle>
-            <CardDescription>
-              <Button variant="link" onClick={() => navigate('/app/projects')}>
-                {t('projects.backToProjects')}
-              </Button>
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
+      <PageContainer width="narrow">
+        <EmptyState
+          title={t('org.permissionDenied')}
+          action={
+            <Button variant="outline" onClick={() => navigate('/app/projects')}>
+              {t('projects.backToProjects')}
+            </Button>
+          }
+        />
+      </PageContainer>
     )
   }
 
@@ -274,406 +274,458 @@ export function TaskDetailPage(): ReactNode {
   const members = membersQuery.data ?? []
   const orgLabels = labelsQuery.data ?? []
   const activity = activityQuery.data ?? []
+  const assignable = members.filter((member) => !assignedIds.has(member.userId))
+  const attachable = orgLabels.filter((label) => !attachedLabelIds.has(label.id))
 
   return (
-    <div className="mx-auto w-full max-w-4xl p-6">
-      <div className="flex flex-col gap-6">
-        <Button
-          variant="ghost"
-          className="self-start"
-          onClick={() =>
-            navigate(
-              task.parentId ? `/app/tasks/${task.parentId}` : `/app/boards/${task.boardId ?? ''}`,
-            )
-          }
-        >
-          <ArrowLeftIcon />
-          {task.parentId ? t('tasks.backToParent') : t('tasks.backToBoard')}
-        </Button>
+    <PageContainer width="wide">
+      <Button
+        variant="link"
+        size="sm"
+        className="mb-3 h-auto gap-1 px-0 text-muted-foreground hover:text-foreground"
+        onClick={() =>
+          navigate(
+            task.parentId ? `/app/tasks/${task.parentId}` : `/app/boards/${task.boardId ?? ''}`,
+          )
+        }
+      >
+        <ArrowLeftIcon className="size-3.5" />
+        {task.parentId ? t('tasks.backToParent') : t('tasks.backToBoard')}
+      </Button>
 
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="flex min-w-0 flex-1 items-start gap-3">
-              <Button
-                variant="outline"
-                size="icon"
-                className="mt-1 shrink-0"
-                aria-label={task.isCompleted ? t('tasks.incomplete') : t('tasks.complete')}
-                onClick={() => updateMutation.mutate({ isCompleted: !task.isCompleted })}
-              >
-                {task.isCompleted ? (
-                  <RotateCcwIcon />
-                ) : (
-                  <CheckIcon className={task.isCompleted ? 'text-primary' : ''} />
-                )}
-              </Button>
-              <div className="min-w-0 flex-1">
-                {editingTitle ? (
-                  <form
-                    className="flex gap-2"
-                    onSubmit={(event) => {
-                      event.preventDefault()
-                      const input = event.currentTarget.elements.namedItem(
-                        'title',
-                      ) as HTMLInputElement
-                      if (input.value.trim()) {
-                        updateMutation.mutate({ title: input.value.trim() })
-                      }
+      <div className="grid gap-x-12 gap-y-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
+        <article className="min-w-0">
+          <header className="mb-8 flex items-start gap-3">
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.9 }}
+              aria-pressed={task.isCompleted}
+              aria-label={task.isCompleted ? t('tasks.incomplete') : t('tasks.complete')}
+              title={task.isCompleted ? t('tasks.incomplete') : t('tasks.complete')}
+              onClick={() => updateMutation.mutate({ isCompleted: !task.isCompleted })}
+              className={cn(
+                'mt-1 flex size-7 shrink-0 items-center justify-center rounded-md border-2 transition-colors duration-200',
+                task.isCompleted
+                  ? 'border-success bg-success text-success-foreground'
+                  : 'border-input text-transparent hover:border-success hover:text-success',
+              )}
+            >
+              <CheckIcon className="size-4" strokeWidth={3} />
+            </motion.button>
+            <div className="min-w-0 flex-1">
+              {editingTitle ? (
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    const input = event.currentTarget.elements.namedItem(
+                      'title',
+                    ) as HTMLInputElement
+                    if (input.value.trim()) {
+                      updateMutation.mutate({ title: input.value.trim() })
+                    }
+                  }}
+                >
+                  <Input
+                    name="title"
+                    autoFocus
+                    defaultValue={task.title}
+                    aria-label={t('tasks.editTitle')}
+                    className="h-10 text-xl font-semibold"
+                    onBlur={() => setEditingTitle(false)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') setEditingTitle(false)
                     }}
-                  >
-                    <Input name="title" autoFocus defaultValue={task.title} />
-                  </form>
-                ) : (
+                  />
+                </form>
+              ) : (
+                <div className="group flex items-start gap-2">
                   <h1
-                    className="cursor-text text-2xl font-semibold tracking-tight"
+                    className={cn(
+                      'text-[1.75rem] leading-tight font-semibold tracking-[-0.015em]',
+                      task.isCompleted && 'text-muted-foreground',
+                    )}
                     onDoubleClick={() => setEditingTitle(true)}
-                    title={t('boards.edit')}
                   >
                     {task.title}
                   </h1>
-                )}
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary">{task.statusName}</Badge>
-                  <Badge
-                    style={{
-                      backgroundColor: PRIORITY_COLORS[task.priority] ?? '#64748b',
-                      color: getContrastTextColor(PRIORITY_COLORS[task.priority] ?? '#64748b'),
-                    }}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="mt-1 size-7 shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                    aria-label={t('tasks.editTitle')}
+                    onClick={() => setEditingTitle(true)}
                   >
-                    {t(`tasks.priority${task.priority}`)}
-                  </Badge>
-                  {task.isArchived && <Badge>{t('projects.archived')}</Badge>}
+                    <PencilIcon className="size-3.5" />
+                  </Button>
                 </div>
+              )}
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Badge variant="outline">{task.statusName}</Badge>
+                {task.isCompleted && <Badge variant="success">{t('tasks.completedState')}</Badge>}
+                {task.isArchived && <Badge variant="warning">{t('projects.archived')}</Badge>}
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+          </header>
+
+          <section aria-labelledby="task-description-heading" className="mb-10">
+            <h2 id="task-description-heading" className="mb-2 text-sm font-semibold">
+              {t('tasks.description')}
+            </h2>
+            <Textarea
+              defaultValue={task.description ?? ''}
+              aria-labelledby="task-description-heading"
+              placeholder={t('tasks.descriptionPlaceholder')}
+              className="min-h-40 max-w-[72ch] border-transparent bg-transparent px-0 text-[0.9375rem] leading-relaxed hover:border-input hover:px-3 focus-visible:border-ring focus-visible:bg-card focus-visible:px-3"
+              onBlur={(event) => {
+                const value = event.currentTarget.value
+                if (value !== (task.description ?? '')) {
+                  updateMutation.mutate({ description: value })
+                }
+              }}
+            />
+          </section>
+
+          <div className="flex flex-col [&>[data-slot=card]]:gap-4 [&>[data-slot=card]]:rounded-none [&>[data-slot=card]]:border-x-0 [&>[data-slot=card]]:border-b-0 [&>[data-slot=card]]:bg-transparent [&>[data-slot=card]]:py-7 [&>[data-slot=card]>[data-slot=card-content]]:px-0 [&>[data-slot=card]>[data-slot=card-header]]:px-0">
+            {!task.parentId && <TaskSubtasks taskId={task.id} />}
+            <TaskChecklists taskId={task.id} />
+            <TaskTimeTracking taskId={task.id} trackedSeconds={task.trackedSeconds} />
+            <TaskAttachments taskId={task.id} />
+            <TaskComments taskId={task.id} members={members} />
+          </div>
+
+          <section aria-labelledby="task-activity-heading" className="border-t pt-7">
+            <h2 id="task-activity-heading" className="mb-4 text-sm font-semibold">
+              {t('tasks.activity')}
+            </h2>
+            {activity.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t('tasks.noActivity')}</p>
+            ) : (
+              <ol className="relative ml-1 flex flex-col gap-3 border-l pl-5">
+                {activity.map((row) => (
+                  <li key={row.id} className="relative text-sm">
+                    <span
+                      className="absolute top-1.5 -left-[1.5625rem] size-2 rounded-[2px] bg-border"
+                      aria-hidden="true"
+                    />
+                    <span className="font-medium">{row.actorName}</span>{' '}
+                    <span className="text-muted-foreground">
+                      {t(
+                        ACTIVITY_LABELS[row.action as keyof typeof ACTIVITY_LABELS] ??
+                          'tasks.activityUpdated',
+                        { defaultValue: row.action },
+                      )}
+                    </span>{' '}
+                    <time
+                      dateTime={row.createdAt}
+                      className="text-xs text-muted-foreground tabular-nums"
+                    >
+                      {formatRelativeTime(row.createdAt, i18n.language)}
+                    </time>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+        </article>
+
+        <aside className="lg:sticky lg:top-20 lg:self-start" aria-label={t('tasks.details')}>
+          <div className="rounded-lg border bg-card">
+            <div className="divide-y">
+              <PropertyRow label={t('tasks.status')}>
+                <span className="text-sm">{task.statusName}</span>
+              </PropertyRow>
+
+              <PropertyRow label={t('tasks.priority')} htmlFor="task-priority">
+                <Select
+                  value={task.priority}
+                  onValueChange={(value) =>
+                    updateMutation.mutate({
+                      priority: value as z.output<typeof updateTaskSchema>['priority'],
+                    })
+                  }
+                >
+                  <SelectTrigger id="task-priority" className="h-8 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRIORITIES.map((priority) => (
+                      <SelectItem key={priority} value={priority}>
+                        <PriorityMark priority={priority} showLabel />
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </PropertyRow>
+
+              <PropertyRow label={t('tasks.dueDate')} htmlFor="task-due">
+                <Input
+                  id="task-due"
+                  type="date"
+                  className="h-8"
+                  defaultValue={task.dueDate?.slice(0, 10) ?? ''}
+                  onChange={(event) => {
+                    const value = event.currentTarget.value
+                    updateMutation.mutate({
+                      dueDate: value ? new Date(`${value}T23:59:59.000Z`).toISOString() : null,
+                    })
+                  }}
+                />
+                {task.dueDate && !task.isCompleted && (
+                  <DueDate
+                    dueDate={task.dueDate}
+                    isCompleted={task.isCompleted}
+                    className="mt-1.5"
+                  />
+                )}
+              </PropertyRow>
+
+              <PropertyRow
+                label={t('tasks.assignees')}
+                action={
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7"
+                        aria-label={t('tasks.addAssignee')}
+                      >
+                        <UserPlusIcon className="size-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-60">
+                      {assignable.length === 0 ? (
+                        <p className="px-2 py-1.5 text-sm text-muted-foreground">
+                          {t('tasks.everyoneAssigned')}
+                        </p>
+                      ) : (
+                        assignable.map((member) => (
+                          <DropdownMenuItem
+                            key={member.userId}
+                            onSelect={() => assignMutation.mutate(member.userId)}
+                          >
+                            <Avatar className="size-5">
+                              <SecureAvatarImage
+                                userId={member.userId}
+                                avatarKey={member.avatarKey}
+                                alt={member.fullName}
+                              />
+                              <AvatarFallback className="text-[0.5rem]">
+                                {initialsOf(member.fullName)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="truncate">{member.fullName}</span>
+                          </DropdownMenuItem>
+                        ))
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                }
+              >
+                {task.assignees.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">{t('tasks.noAssignees')}</p>
+                ) : (
+                  <ul className="flex flex-col gap-1">
+                    {task.assignees.map((assignee) => (
+                      <li key={assignee.id} className="group flex items-center gap-2 text-sm">
+                        <Avatar className="size-6">
+                          <SecureAvatarImage
+                            userId={assignee.userId}
+                            avatarKey={assignee.avatarKey}
+                            alt={assignee.fullName}
+                          />
+                          <AvatarFallback>{initialsOf(assignee.fullName)}</AvatarFallback>
+                        </Avatar>
+                        <span className="min-w-0 flex-1 truncate">{assignee.fullName}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+                          aria-label={t('tasks.removeAssignee', { name: assignee.fullName })}
+                          onClick={() => unassignMutation.mutate(assignee.userId)}
+                        >
+                          <XIcon className="size-3.5" />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </PropertyRow>
+
+              <PropertyRow
+                label={t('tasks.labels')}
+                action={
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7"
+                        aria-label={t('tasks.addLabel')}
+                      >
+                        <PlusIcon className="size-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      {attachable.map((label) => (
+                        <DropdownMenuItem
+                          key={label.id}
+                          onSelect={() => attachLabelMutation.mutate(label.id)}
+                        >
+                          <span
+                            className="size-2.5 rounded-[2px]"
+                            style={{ backgroundColor: label.color }}
+                            aria-hidden="true"
+                          />
+                          {label.name}
+                        </DropdownMenuItem>
+                      ))}
+                      {attachable.length > 0 && <DropdownMenuSeparator />}
+                      <DropdownMenuItem onSelect={() => setCreateLabelOpen(true)}>
+                        <TagIcon />
+                        {t('tasks.createLabel')}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                }
+              >
+                {task.labels.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">{t('tasks.noLabels')}</p>
+                ) : (
+                  <ul className="flex flex-wrap gap-1.5">
+                    {task.labels.map((label) => (
+                      <li
+                        key={label.id}
+                        className="inline-flex items-center gap-1 rounded-sm bg-muted py-0.5 pr-0.5 pl-2 text-xs font-medium"
+                      >
+                        <span
+                          className="size-2 rounded-[2px]"
+                          style={{ backgroundColor: label.color }}
+                          aria-hidden="true"
+                        />
+                        {label.name}
+                        <button
+                          type="button"
+                          className="rounded-[3px] p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                          aria-label={t('tasks.removeLabel', { name: label.name })}
+                          onClick={() => detachLabelMutation.mutate(label.labelId)}
+                        >
+                          <XIcon className="size-3" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </PropertyRow>
+            </div>
+            <div className="flex flex-wrap gap-1 border-t p-2">
               <Button
-                variant="outline"
+                variant="ghost"
+                size="sm"
                 onClick={() => archiveMutation.mutate(!task.isArchived)}
                 disabled={archiveMutation.isPending}
               >
                 <ArchiveIcon />
                 {task.isArchived ? t('tasks.unarchive') : t('tasks.archive')}
               </Button>
-              <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="destructive">
-                    <Trash2Icon />
-                    {t('tasks.delete')}
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>{t('tasks.delete')}</DialogTitle>
-                    <DialogDescription>{t('tasks.deleteConfirm')}</DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setDeleteOpen(false)}>
-                      {t('common.cancel')}
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={() => deleteMutation.mutate()}
-                      disabled={deleteMutation.isPending}
-                    >
-                      {t('tasks.delete')}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:bg-[color-mix(in_oklch,var(--destructive)_10%,transparent)] hover:text-destructive"
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2Icon />
+                {t('tasks.delete')}
+              </Button>
             </div>
           </div>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            <div className="flex flex-col gap-4 md:col-span-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">{t('tasks.description')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Textarea
-                    defaultValue={task.description ?? ''}
-                    placeholder={t('tasks.descriptionPlaceholder')}
-                    className="min-h-32"
-                    onBlur={(event) => {
-                      const value = event.currentTarget.value
-                      if (value !== (task.description ?? '')) {
-                        updateMutation.mutate({ description: value })
-                      }
-                    }}
-                  />
-                </CardContent>
-              </Card>
-
-              {!task.parentId && <TaskSubtasks taskId={task.id} />}
-
-              <TaskChecklists taskId={task.id} />
-
-              <TaskTimeTracking taskId={task.id} trackedSeconds={task.trackedSeconds} />
-
-              <TaskAttachments taskId={task.id} />
-
-              <TaskComments taskId={task.id} members={members} />
-
-              <Card>
-                <CardHeader className="flex-row items-center justify-between space-y-0">
-                  <CardTitle className="text-base">{t('tasks.activity')}</CardTitle>
-                  <HistoryIcon className="text-muted-foreground size-4" />
-                </CardHeader>
-                <CardContent>
-                  {activity.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">{t('tasks.noActivity')}</p>
-                  ) : (
-                    <ul className="flex flex-col gap-3">
-                      {activity.map((row) => (
-                        <li key={row.id} className="flex items-start gap-2 text-sm">
-                          <span className="mt-0.5 text-muted-foreground">•</span>
-                          <span>
-                            <span className="font-medium">{row.actorName}</span>{' '}
-                            <span className="text-muted-foreground">
-                              {t(
-                                ACTIVITY_LABELS[row.action as keyof typeof ACTIVITY_LABELS] ??
-                                  'tasks.activityUpdated',
-                                { defaultValue: row.action },
-                              )}
-                            </span>
-                            <span className="text-muted-foreground">
-                              {' · '}
-                              {formatRelativeTime(row.createdAt, i18n.language)}
-                            </span>
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="flex flex-col gap-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">{t('tasks.details')}</CardTitle>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-4">
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="task-priority">
-                      <FlagIcon className="mr-1 inline size-3.5" />
-                      {t('tasks.priority')}
-                    </Label>
-                    <Select
-                      value={task.priority}
-                      onValueChange={(value) =>
-                        updateMutation.mutate({
-                          priority: value as z.output<typeof updateTaskSchema>['priority'],
-                        })
-                      }
-                    >
-                      <SelectTrigger id="task-priority">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PRIORITIES.map((priority) => (
-                          <SelectItem key={priority} value={priority}>
-                            {t(`tasks.priority${priority}`)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="task-due">
-                      <CalendarIcon className="mr-1 inline size-3.5" />
-                      {t('tasks.dueDate')}
-                    </Label>
-                    <Input
-                      id="task-due"
-                      type="date"
-                      defaultValue={task.dueDate?.slice(0, 10) ?? ''}
-                      onChange={(event) => {
-                        const value = event.currentTarget.value
-                        updateMutation.mutate({
-                          dueDate: value ? new Date(`${value}T23:59:59.000Z`).toISOString() : null,
-                        })
-                      }}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex-row items-center justify-between space-y-0">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <UsersIcon className="size-4" />
-                    {t('tasks.assignees')}
-                  </CardTitle>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8"
-                    aria-label={t('tasks.addAssignee')}
-                    onClick={() => {
-                      const next = members.find((m) => !assignedIds.has(m.userId))
-                      if (next) assignMutation.mutate(next.userId)
-                    }}
-                  >
-                    <UserPlusIcon className="size-4" />
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  {task.assignees.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">{t('tasks.noAssignees')}</p>
-                  ) : (
-                    <ul className="flex flex-col gap-2">
-                      {task.assignees.map((assignee) => (
-                        <li key={assignee.id} className="flex items-center gap-2 text-sm">
-                          <Avatar className="size-6">
-                            <SecureAvatarImage
-                              userId={assignee.userId}
-                              avatarKey={assignee.avatarKey}
-                              alt={assignee.fullName}
-                            />
-                            <AvatarFallback>{initialsOf(assignee.fullName)}</AvatarFallback>
-                          </Avatar>
-                          <span className="min-w-0 flex-1 truncate">{assignee.fullName}</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="size-7"
-                            aria-label={t('tasks.assigneeRemoved')}
-                            onClick={() => unassignMutation.mutate(assignee.userId)}
-                          >
-                            <XIcon className="size-3.5" />
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex-row items-center justify-between space-y-0">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <TagIcon className="size-4" />
-                    {t('tasks.labels')}
-                  </CardTitle>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8"
-                    aria-label={t('tasks.addLabel')}
-                    onClick={() => {
-                      const next = orgLabels.find((l) => !attachedLabelIds.has(l.id))
-                      if (next) attachLabelMutation.mutate(next.id)
-                    }}
-                  >
-                    <PlusIcon className="size-4" />
-                  </Button>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-2">
-                  {task.labels.length === 0 && orgLabels.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">{t('tasks.noLabels')}</p>
-                  ) : (
-                    <ul className="flex flex-wrap gap-2">
-                      {task.labels.map((label) => (
-                        <li key={label.id}>
-                          <Badge
-                            className="cursor-pointer"
-                            style={{
-                              backgroundColor: label.color,
-                              color: getContrastTextColor(label.color),
-                            }}
-                            onClick={() => detachLabelMutation.mutate(label.labelId)}
-                            title={t('tasks.labelRemoved')}
-                          >
-                            {label.name} ×
-                          </Badge>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <div className="flex flex-wrap gap-2">
-                    {orgLabels
-                      .filter((label) => !attachedLabelIds.has(label.id))
-                      .map((label) => (
-                        <button
-                          key={label.id}
-                          type="button"
-                          className="rounded-full px-2 py-0.5 text-xs transition-shadow hover:ring-2 hover:ring-ring hover:ring-offset-1"
-                          style={{
-                            backgroundColor: label.color,
-                            color: getContrastTextColor(label.color),
-                          }}
-                          onClick={() => attachLabelMutation.mutate(label.id)}
-                        >
-                          + {label.name}
-                        </button>
-                      ))}
-                  </div>
-                  <Dialog open={createLabelOpen} onOpenChange={setCreateLabelOpen}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="self-start">
-                        <CircleDotIcon className="size-3.5" />
-                        {t('tasks.createLabel')}
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-md">
-                      <DialogHeader>
-                        <DialogTitle>{t('tasks.createLabel')}</DialogTitle>
-                        <DialogDescription>{t('boards.createDescription')}</DialogDescription>
-                      </DialogHeader>
-                      <form
-                        onSubmit={createLabelForm.handleSubmit((values) =>
-                          createLabelMutation.mutate(values),
-                        )}
-                        className="flex flex-col gap-4"
-                      >
-                        <div className="flex flex-col gap-2">
-                          <Label htmlFor="label-name">{t('tasks.labelName')}</Label>
-                          <Input id="label-name" autoFocus {...createLabelForm.register('name')} />
-                          {createLabelForm.formState.errors.name && (
-                            <p className="text-destructive text-xs">
-                              {createLabelForm.formState.errors.name.message}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          <Label>{t('projects.color')}</Label>
-                          <div className="flex gap-2">
-                            {LABEL_COLORS.map((color) => (
-                              <button
-                                key={color}
-                                type="button"
-                                aria-label={color}
-                                onClick={() => createLabelForm.setValue('color', color)}
-                                className={`size-6 rounded-full transition-transform ${
-                                  createLabelForm.watch('color') === color
-                                    ? 'ring-ring ring-2 ring-offset-2'
-                                    : 'hover:scale-110'
-                                }`}
-                                style={{ backgroundColor: color }}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                        <Button
-                          type="submit"
-                          disabled={createLabelMutation.isPending}
-                          className="self-start"
-                        >
-                          {t('tasks.createLabel')}
-                        </Button>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
+        </aside>
       </div>
+
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('tasks.delete')}</DialogTitle>
+            <DialogDescription>{t('tasks.deleteConfirm')}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteMutation.mutate()}
+              disabled={deleteMutation.isPending}
+            >
+              {t('tasks.delete')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={createLabelOpen} onOpenChange={setCreateLabelOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('tasks.createLabel')}</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={createLabelForm.handleSubmit((values) => createLabelMutation.mutate(values))}
+            className="flex flex-col gap-4"
+          >
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="label-name">{t('tasks.labelName')}</Label>
+              <Input id="label-name" autoFocus {...createLabelForm.register('name')} />
+              {createLabelForm.formState.errors.name && (
+                <p className="text-xs text-destructive">
+                  {createLabelForm.formState.errors.name.message}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label id="label-color-label">{t('projects.color')}</Label>
+              <ColorSwatchPicker
+                labelledBy="label-color-label"
+                colors={LABEL_COLORS}
+                value={createLabelForm.watch('color') ?? LABEL_COLORS[0] ?? ''}
+                onChange={(color) => createLabelForm.setValue('color', color)}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={createLabelMutation.isPending}>
+                {t('tasks.createLabel')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </PageContainer>
+  )
+}
+
+function PropertyRow({
+  label,
+  htmlFor,
+  action,
+  children,
+}: {
+  label: string
+  htmlFor?: string
+  action?: ReactNode
+  children: ReactNode
+}): ReactNode {
+  return (
+    <div className="px-4 py-3">
+      <div className="mb-1.5 flex min-h-7 items-center justify-between gap-2">
+        {htmlFor ? (
+          <label htmlFor={htmlFor} className="text-xs font-medium text-muted-foreground">
+            {label}
+          </label>
+        ) : (
+          <h3 className="text-xs font-medium text-muted-foreground">{label}</h3>
+        )}
+        {action}
+      </div>
+      <div>{children}</div>
     </div>
   )
 }

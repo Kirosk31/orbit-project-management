@@ -1,12 +1,13 @@
 import type { SavedFilterDto, SavedTaskFilterValues, TaskPriority } from '@orbit/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { FilterIcon, SaveIcon, SearchIcon, Trash2Icon, XIcon } from 'lucide-react'
+import { ArchiveIcon, BookmarkIcon, SaveIcon, SearchIcon, Trash2Icon, XIcon } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Select,
   SelectContent,
@@ -37,6 +38,7 @@ export function TaskBoardFilters({ boardId, filters, onChange }: TaskBoardFilter
   const [search, setSearch] = useState(filters.search ?? '')
   const [name, setName] = useState('')
   const [selectedId, setSelectedId] = useState('')
+  const [saveOpen, setSaveOpen] = useState(false)
   const latestFilters = useRef(filters)
   latestFilters.current = filters
 
@@ -62,6 +64,7 @@ export function TaskBoardFilters({ boardId, filters, onChange }: TaskBoardFilter
       queryClient.setQueryData<SavedFilterDto[]>(queryKey, (current = []) => [...current, created])
       setSelectedId(created.id)
       setName('')
+      setSaveOpen(false)
       toast.success(t('tasks.savedFilterCreated'))
     },
     onError: showError,
@@ -105,65 +108,63 @@ export function TaskBoardFilters({ boardId, filters, onChange }: TaskBoardFilter
     filters.archived
 
   return (
-    <section
-      className="flex flex-col gap-3 rounded-lg border bg-card p-3"
-      aria-label={t('tasks.filters')}
-    >
-      <div className="flex flex-wrap items-center gap-2">
-        <FilterIcon className="text-muted-foreground size-4" />
-        <div className="relative min-w-48 flex-1 sm:max-w-80">
-          <SearchIcon className="text-muted-foreground absolute left-2.5 top-2.5 size-4" />
-          <Input
-            className="pl-8"
-            value={search}
-            maxLength={200}
-            placeholder={t('tasks.searchPlaceholder')}
-            aria-label={t('tasks.search')}
-            onChange={(event) => setSearch(event.currentTarget.value)}
-          />
-        </div>
-        <Select
-          value={filters.priority ?? 'all'}
-          onValueChange={(value) =>
-            onChange({
-              ...filters,
-              priority: value === 'all' ? undefined : (value as TaskPriority),
-            })
-          }
-        >
-          <SelectTrigger className="w-40" aria-label={t('tasks.priority')}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('tasks.allPriorities')}</SelectItem>
-            {PRIORITIES.map((priority) => (
-              <SelectItem key={priority} value={priority}>
-                {t(`tasks.priority${priority}`)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button
-          type="button"
-          variant={filters.archived ? 'secondary' : 'outline'}
-          onClick={() => onChange({ ...filters, archived: !filters.archived })}
-        >
-          {t('tasks.includeArchived')}
-        </Button>
-        {hasFilters && (
-          <Button type="button" variant="ghost" onClick={clearFilters}>
-            <XIcon />
-            {t('tasks.clearFilters')}
-          </Button>
-        )}
+    <section className="flex flex-wrap items-center gap-2" aria-label={t('tasks.filters')}>
+      <div className="relative w-full sm:w-64">
+        <SearchIcon className="pointer-events-none absolute top-2 left-2.5 size-4 text-muted-foreground" />
+        <Input
+          className="h-8 pl-8 text-sm"
+          value={search}
+          maxLength={200}
+          placeholder={t('tasks.searchPlaceholder')}
+          aria-label={t('tasks.search')}
+          onChange={(event) => setSearch(event.currentTarget.value)}
+        />
       </div>
+      <Select
+        value={filters.priority ?? 'all'}
+        onValueChange={(value) =>
+          onChange({
+            ...filters,
+            priority: value === 'all' ? undefined : (value as TaskPriority),
+          })
+        }
+      >
+        <SelectTrigger className="h-8 w-40" aria-label={t('tasks.priority')}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">{t('tasks.allPriorities')}</SelectItem>
+          {PRIORITIES.map((priority) => (
+            <SelectItem key={priority} value={priority}>
+              {t(`tasks.priority${priority}`)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Button
+        type="button"
+        size="sm"
+        variant={filters.archived ? 'secondary' : 'ghost'}
+        aria-pressed={Boolean(filters.archived)}
+        onClick={() => onChange({ ...filters, archived: !filters.archived })}
+      >
+        <ArchiveIcon />
+        {t('tasks.includeArchived')}
+      </Button>
+      {hasFilters && (
+        <Button type="button" size="sm" variant="ghost" onClick={clearFilters}>
+          <XIcon />
+          {t('tasks.clearFilters')}
+        </Button>
+      )}
 
-      <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+      <div className="flex w-full items-center gap-1 sm:ml-auto sm:w-auto">
         <Select value={selectedId || 'none'} onValueChange={applySavedFilter}>
-          <SelectTrigger className="min-w-48" aria-label={t('tasks.savedFilters')}>
+          <SelectTrigger className="h-8 min-w-44" aria-label={t('tasks.savedFilters')}>
+            <BookmarkIcon className="size-3.5" />
             <SelectValue placeholder={t('tasks.savedFilters')} />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent align="end">
             <SelectItem value="none">{t('tasks.noSavedFilterSelected')}</SelectItem>
             {query.data?.map((filter) => (
               <SelectItem key={filter.id} value={filter.id}>
@@ -176,45 +177,64 @@ export function TaskBoardFilters({ boardId, filters, onChange }: TaskBoardFilter
           <>
             <Button
               type="button"
-              size="sm"
-              variant="secondary"
+              size="icon"
+              variant="ghost"
+              className="size-8"
               disabled={updateMutation.isPending}
               onClick={() => updateMutation.mutate(selectedId)}
+              aria-label={t('tasks.updateSavedFilter')}
+              title={t('tasks.updateSavedFilter')}
             >
               <SaveIcon />
-              {t('tasks.updateSavedFilter')}
             </Button>
             <Button
               type="button"
               size="icon"
               variant="ghost"
+              className="size-8"
               disabled={deleteMutation.isPending}
               onClick={() => deleteMutation.mutate(selectedId)}
+              aria-label={t('tasks.deleteSavedFilter')}
+              title={t('tasks.deleteSavedFilter')}
             >
               <Trash2Icon />
-              <span className="sr-only">{t('tasks.deleteSavedFilter')}</span>
             </Button>
           </>
         ) : (
-          <form
-            className="flex min-w-60 flex-1 gap-2 sm:max-w-md"
-            onSubmit={(event) => {
-              event.preventDefault()
-              if (name.trim()) createMutation.mutate()
-            }}
-          >
-            <Input
-              value={name}
-              maxLength={80}
-              placeholder={t('tasks.savedFilterNamePlaceholder')}
-              aria-label={t('tasks.savedFilterName')}
-              onChange={(event) => setName(event.currentTarget.value)}
-            />
-            <Button type="submit" size="sm" disabled={!name.trim() || createMutation.isPending}>
-              <SaveIcon />
-              {t('tasks.saveFilter')}
-            </Button>
-          </form>
+          <Popover open={saveOpen} onOpenChange={setSaveOpen}>
+            <PopoverTrigger asChild>
+              <Button type="button" size="sm" variant="ghost" disabled={!hasFilters}>
+                <SaveIcon />
+                {t('tasks.saveFilter')}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-72">
+              <form
+                className="flex flex-col gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  if (name.trim()) createMutation.mutate()
+                }}
+              >
+                <Input
+                  autoFocus
+                  value={name}
+                  maxLength={80}
+                  placeholder={t('tasks.savedFilterNamePlaceholder')}
+                  aria-label={t('tasks.savedFilterName')}
+                  onChange={(event) => setName(event.currentTarget.value)}
+                />
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="self-end"
+                  disabled={!name.trim() || createMutation.isPending}
+                >
+                  {t('tasks.saveFilter')}
+                </Button>
+              </form>
+            </PopoverContent>
+          </Popover>
         )}
       </div>
     </section>
