@@ -8,18 +8,28 @@ import {
   type UpdateOrganizationDto,
 } from '@orbit/shared'
 import { useMutation, useQuery, useQueries, useQueryClient } from '@tanstack/react-query'
-import { Building2Icon, MailIcon, PlusIcon, Trash2Icon, UsersIcon, XIcon } from 'lucide-react'
+import { MailIcon, PlusIcon, Trash2Icon, UsersIcon, XIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { useForm } from 'react-hook-form'
 import type { ReactNode } from 'react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import type { z } from 'zod'
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { EmptyState, PageContainer, PageHeader } from '@/components/shared/page'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -60,6 +70,7 @@ const UPDATE_KEYS = new Set(['OWNER', 'ADMIN'])
 const DELETE_KEYS = new Set(['OWNER'])
 
 export function OrganizationDetailPage(): ReactNode {
+  const [deleteOrgOpen, setDeleteOrgOpen] = useState(false)
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const { slug = '' } = useParams()
@@ -241,60 +252,76 @@ export function OrganizationDetailPage(): ReactNode {
 
   if (orgQuery.isPending) {
     return (
-      <div className="mx-auto w-full max-w-3xl p-6">
+      <PageContainer width="narrow">
         <div className="flex flex-col gap-4">
           <Skeleton className="h-10 w-56" />
           <Skeleton className="h-32 w-full" />
           <Skeleton className="h-40 w-full" />
         </div>
-      </div>
+      </PageContainer>
     )
   }
 
   if (!org) {
     return (
-      <div className="mx-auto w-full max-w-3xl p-6">
-        <Card>
-          <CardHeader className="items-center text-center">
-            <CardTitle>{t('common.notFoundTitle')}</CardTitle>
-            <CardDescription>{t('common.notFoundDescription')}</CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
+      <PageContainer width="narrow">
+        <EmptyState
+          title={t('common.notFoundTitle')}
+          description={t('common.notFoundDescription')}
+        />
+      </PageContainer>
     )
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl p-6">
+    <PageContainer width="narrow">
       <div className="flex flex-col gap-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex items-center gap-4">
-            <div className="bg-primary/10 text-primary flex size-12 shrink-0 items-center justify-center rounded-md">
-              <Building2Icon className="size-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-semibold tracking-tight">{org.name}</h1>
-                {org.roleKey && <Badge variant="secondary">{org.roleKey}</Badge>}
-              </div>
-              <p className="text-muted-foreground text-sm">{org.slug}</p>
-            </div>
-          </div>
-          {canDelete && (
-            <Button
-              variant="destructive"
-              onClick={() => {
-                if (window.confirm(t('org.deleteConfirm'))) {
-                  deleteMutation.mutate()
-                }
-              }}
-              disabled={deleteMutation.isPending}
-            >
-              <Trash2Icon />
-              {t('org.deleteOrganization')}
-            </Button>
-          )}
-        </div>
+        <PageHeader
+          className="mb-0"
+          title={org.name}
+          meta={
+            org.roleKey ? (
+              <Badge variant="secondary" className="capitalize">
+                {org.roleKey}
+              </Badge>
+            ) : null
+          }
+          description={org.description || org.slug}
+          actions={
+            canDelete ? (
+              <Button
+                variant="ghost"
+                className="text-destructive hover:bg-[color-mix(in_srgb,var(--destructive)_10%,transparent)] hover:text-destructive"
+                onClick={() => setDeleteOrgOpen(true)}
+                disabled={deleteMutation.isPending}
+              >
+                <Trash2Icon />
+                {t('org.deleteOrganization')}
+              </Button>
+            ) : null
+          }
+        />
+
+        <Dialog open={deleteOrgOpen} onOpenChange={setDeleteOrgOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>{t('org.deleteOrganization')}</DialogTitle>
+              <DialogDescription>{t('org.deleteConfirm')}</DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeleteOrgOpen(false)}>
+                {t('common.cancel')}
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => deleteMutation.mutate()}
+                disabled={deleteMutation.isPending}
+              >
+                {t('org.deleteOrganization')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {canUpdate && (
           <Card>
@@ -575,6 +602,6 @@ export function OrganizationDetailPage(): ReactNode {
           </Card>
         )}
       </div>
-    </div>
+    </PageContainer>
   )
 }

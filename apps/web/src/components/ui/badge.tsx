@@ -12,12 +12,12 @@ const badgeVariants = cva(
         default: 'border-transparent bg-accent text-accent-foreground',
         secondary: 'border-transparent bg-secondary text-muted-foreground',
         destructive:
-          'border-transparent bg-[color-mix(in_oklch,var(--destructive)_14%,transparent)] text-[color-mix(in_oklch,var(--destructive)_80%,var(--foreground))]',
+          'border-transparent bg-[color-mix(in_srgb,var(--destructive)_14%,transparent)] text-[color-mix(in_srgb,var(--destructive)_80%,var(--foreground))]',
         outline: 'border-border text-muted-foreground',
         success:
-          'border-transparent bg-[color-mix(in_oklch,var(--success)_14%,transparent)] text-[color-mix(in_oklch,var(--success)_82%,var(--foreground))]',
+          'border-transparent bg-[color-mix(in_srgb,var(--success)_14%,transparent)] text-[color-mix(in_srgb,var(--success)_82%,var(--foreground))]',
         warning:
-          'border-transparent bg-[color-mix(in_oklch,var(--ochre)_24%,transparent)] text-ochre-ink',
+          'border-transparent bg-[color-mix(in_srgb,var(--ochre)_24%,transparent)] text-ochre-ink',
       },
     },
     defaultVariants: {

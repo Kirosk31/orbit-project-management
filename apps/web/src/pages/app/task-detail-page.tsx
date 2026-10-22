@@ -631,7 +631,7 @@ export function TaskDetailPage(): ReactNode {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-destructive hover:bg-[color-mix(in_oklch,var(--destructive)_10%,transparent)] hover:text-destructive"
+                className="text-destructive hover:bg-[color-mix(in_srgb,var(--destructive)_10%,transparent)] hover:text-destructive"
                 onClick={() => setDeleteOpen(true)}
               >
                 <Trash2Icon />

@@ -62,7 +62,7 @@ export function Footer(): ReactNode {
           <p>
             © {year} Orbit. {t('footer.rights')}
           </p>
-          <p className="text-muted-foreground font-mono text-xs">Plan. Track. Ship.</p>
+          <p className="text-muted-foreground text-xs">Plan. Track. Ship.</p>
         </div>
       </div>
     </footer>

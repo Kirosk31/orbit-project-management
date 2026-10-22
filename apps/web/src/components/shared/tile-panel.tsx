@@ -101,7 +101,7 @@ export function TileGlyph({ state, size, turn }: TileGlyphProps): ReactNode {
           <path
             d="M0 9a7 7 0 0 1 7 7"
             fill="none"
-            stroke="color-mix(in oklch, var(--muted-foreground) 45%, transparent)"
+            stroke="color-mix(in srgb, var(--muted-foreground) 45%, transparent)"
             strokeWidth="1.25"
           />
         ) : (

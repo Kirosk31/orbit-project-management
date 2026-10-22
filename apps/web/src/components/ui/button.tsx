@@ -10,11 +10,11 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          'bg-primary text-primary-foreground hover:bg-[color-mix(in_oklch,var(--primary)_86%,var(--foreground))]',
+          'bg-primary text-primary-foreground hover:bg-[color-mix(in_srgb,var(--primary)_86%,var(--foreground))]',
         destructive:
-          'bg-destructive text-destructive-foreground hover:bg-[color-mix(in_oklch,var(--destructive)_88%,var(--foreground))]',
+          'bg-destructive text-destructive-foreground hover:bg-[color-mix(in_srgb,var(--destructive)_88%,var(--foreground))]',
         outline:
-          'border border-input bg-card text-foreground hover:border-[color-mix(in_oklch,var(--input)_60%,var(--primary))] hover:bg-accent hover:text-accent-foreground',
+          'border border-input bg-card text-foreground hover:border-[color-mix(in_srgb,var(--input)_60%,var(--primary))] hover:bg-accent hover:text-accent-foreground',
         secondary:
           'bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground',
         ghost: 'text-foreground hover:bg-accent hover:text-accent-foreground',

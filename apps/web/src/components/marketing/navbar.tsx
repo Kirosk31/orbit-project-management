@@ -50,6 +50,9 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }): ReactNode {
   )
 }
 
+const OCHRE_BUTTON =
+  'bg-ochre text-warning-foreground hover:bg-[color-mix(in_srgb,var(--ochre)_88%,white)]'
+
 export function Navbar(): ReactNode {
   const { t } = useTranslation()
   const location = useLocation()
@@ -64,13 +67,14 @@ export function Navbar(): ReactNode {
   return (
     <header
       className={cn(
-        'fixed inset-x-0 top-0 z-40 transition-all duration-300',
-        scrolled ? 'glass border-b' : 'bg-transparent',
+        'fixed inset-x-0 top-0 z-40 bg-rail text-rail-foreground transition-[border-color] duration-200',
+        '[--accent-foreground:var(--rail-foreground)] [--accent:var(--rail-accent)] [--foreground:var(--rail-foreground)] [--muted-foreground:var(--rail-muted-foreground)] [--ring:var(--rail-foreground)]',
+        scrolled ? 'border-b border-rail-border' : 'border-b border-transparent',
       )}
     >
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link to="/" aria-label={t('nav.homeLabel')}>
-          <Logo />
+          <Logo tone="rail" />
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex" aria-label={t('nav.mainNavigation')}>
@@ -82,7 +86,7 @@ export function Navbar(): ReactNode {
           <ThemeToggle />
           <div className="hidden items-center gap-2 md:flex">
             {isAuthenticated ? (
-              <Button asChild>
+              <Button asChild className={OCHRE_BUTTON}>
                 <Link to="/app">{t('nav.openApp')}</Link>
               </Button>
             ) : (
@@ -90,7 +94,7 @@ export function Navbar(): ReactNode {
                 <Button variant="ghost" asChild>
                   <Link to="/login">{t('nav.login')}</Link>
                 </Button>
-                <Button asChild>
+                <Button asChild className={OCHRE_BUTTON}>
                   <Link to="/register">{t('nav.signUp')}</Link>
                 </Button>
               </>

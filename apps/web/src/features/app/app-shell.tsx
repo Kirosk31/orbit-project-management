@@ -199,7 +199,7 @@ function SearchButton(): ReactNode {
       <button
         type="button"
         onClick={openPalette}
-        className="hidden h-9 w-full max-w-sm items-center gap-2.5 rounded-md border border-input bg-card px-3 text-sm text-muted-foreground transition-colors duration-150 hover:border-[color-mix(in_oklch,var(--input)_70%,var(--foreground))] hover:text-foreground sm:flex"
+        className="hidden h-9 w-full max-w-sm items-center gap-2.5 rounded-md border border-input bg-card px-3 text-sm text-muted-foreground transition-colors duration-150 hover:border-[color-mix(in_srgb,var(--input)_70%,var(--foreground))] hover:text-foreground sm:flex"
       >
         <SearchIcon className="size-4" aria-hidden="true" />
         <span className="flex-1 text-left">{t('app.searchOrJump')}</span>

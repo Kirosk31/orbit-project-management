@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 
 interface AuthCardProps {
@@ -19,15 +18,15 @@ export function AuthCard({
   className,
 }: AuthCardProps): ReactNode {
   return (
-    <Card className={cn('w-full max-w-sm shadow-lg', className)}>
-      <CardHeader>
-        <CardTitle className="text-xl">{title}</CardTitle>
-        <CardDescription>{subtitle}</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+    <div className={cn('w-full max-w-sm', className)}>
+      <div className="mb-7 space-y-1.5">
+        <h1 className="text-[1.625rem] leading-tight font-semibold tracking-[-0.015em]">{title}</h1>
+        <p className="text-sm text-muted-foreground">{subtitle}</p>
+      </div>
+      <div className="flex flex-col gap-4">
         {children}
-        {footer && <p className="text-muted-foreground mt-2 text-center text-sm">{footer}</p>}
-      </CardContent>
-    </Card>
+        {footer && <p className="mt-3 text-center text-sm text-muted-foreground">{footer}</p>}
+      </div>
+    </div>
   )
 }

@@ -605,7 +605,7 @@ export function BoardDetailPage(): ReactNode {
                     {tasksQuery.isPending ? (
                       <Skeleton className="h-20 w-full bg-card" />
                     ) : columnTasks.length === 0 ? (
-                      <p className="rounded-md border border-dashed border-[color-mix(in_oklch,var(--border)_80%,var(--foreground))] px-3 py-5 text-center text-xs text-muted-foreground">
+                      <p className="rounded-md border border-dashed border-[color-mix(in_srgb,var(--border)_80%,var(--foreground))] px-3 py-5 text-center text-xs text-muted-foreground">
                         {isTaskTarget ? t('boards.dropHere') : t('boards.emptyColumn')}
                       </p>
                     ) : (
@@ -850,7 +850,7 @@ function TaskCard({ task, isDragging, onOpen, onDragStart, onDragEnd }: TaskCard
       onDragEnd={onDragEnd}
       onClick={onOpen}
       className={cn(
-        'flex w-full cursor-pointer flex-col gap-2.5 rounded-md border bg-card p-3 text-left transition-[border-color,box-shadow,opacity,translate] duration-150 hover:border-[color-mix(in_oklch,var(--border)_55%,var(--primary))] hover:shadow-lift',
+        'flex w-full cursor-pointer flex-col gap-2.5 rounded-md border bg-card p-3 text-left transition-[border-color,box-shadow,opacity,translate] duration-150 hover:border-[color-mix(in_srgb,var(--border)_55%,var(--primary))] hover:shadow-lift',
         isDragging && 'rotate-1 opacity-60',
       )}
     >

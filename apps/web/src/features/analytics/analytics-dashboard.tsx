@@ -1,12 +1,4 @@
 import type { OrganizationAnalyticsDto } from '@orbit/shared'
-import {
-  ActivityIcon,
-  ChartNoAxesCombinedIcon,
-  CheckCheckIcon,
-  Clock3Icon,
-  ListTodoIcon,
-  TriangleAlertIcon,
-} from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -51,12 +43,8 @@ export function AnalyticsDashboard({
     return (
       <section aria-label={t('analytics.title')} className="space-y-4">
         <Skeleton className="h-8 w-64" />
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {Array.from({ length: 4 }, (_, index) => (
-            <Skeleton key={index} className="h-32 rounded-xl" />
-          ))}
-        </div>
-        <Skeleton className="h-80 rounded-xl" />
+        <Skeleton className="h-24 rounded-lg" />
+        <Skeleton className="h-80 rounded-lg" />
       </section>
     )
   }
@@ -89,32 +77,32 @@ export function AnalyticsDashboard({
       label: t('analytics.totalTasks'),
       value: data.summary.totalTasks,
       detail: t('analytics.openTasks', { count: data.summary.openTasks }),
-      icon: ListTodoIcon,
+      attention: false,
     },
     {
       label: t('analytics.completed'),
       value: data.summary.completedInPeriod,
       detail: t('analytics.completionRate', { rate: String(data.summary.completionRate) }),
-      icon: CheckCheckIcon,
+      attention: false,
     },
     {
       label: t('analytics.overdue'),
       value: data.summary.overdueTasks,
       detail: t('analytics.requiresAttention'),
-      icon: TriangleAlertIcon,
+      attention: data.summary.overdueTasks > 0,
     },
     {
       label: t('analytics.trackedTime'),
       value: `${hours}h`,
       detail: t('analytics.periodDays', { count: data.period.days }),
-      icon: Clock3Icon,
+      attention: false,
     },
   ]
 
   return (
     <section aria-labelledby="analytics-heading" className="space-y-4">
       <div>
-        <h2 id="analytics-heading" className="text-xl font-semibold">
+        <h2 id="analytics-heading" className="text-base font-semibold">
           {t('analytics.title')}
         </h2>
         <p className="text-muted-foreground text-sm">
@@ -122,44 +110,33 @@ export function AnalyticsDashboard({
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {summaryCards.map(({ label, value, detail, icon: Icon }) => (
-          <Card key={label}>
-            <CardContent className="pt-6">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-muted-foreground text-sm">{label}</p>
-                  <p className="mt-1 text-3xl font-semibold tabular-nums">{value}</p>
-                  <p className="text-muted-foreground mt-1 text-xs">{detail}</p>
-                </div>
-                <span className="bg-primary/10 text-primary rounded-lg p-2">
-                  <Icon aria-hidden="true" className="size-5" />
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+      <dl className="grid grid-cols-2 overflow-hidden rounded-lg border bg-card xl:grid-cols-4">
+        {summaryCards.map(({ label, value, detail, attention }) => (
+          <div
+            key={label}
+            className="border-b px-5 py-4 even:border-l xl:border-b-0 xl:border-l xl:first:border-l-0"
+          >
+            <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+            <dd
+              className={`mt-1 text-2xl font-semibold tabular-nums ${attention ? 'text-ochre-ink' : ''}`}
+            >
+              {value}
+            </dd>
+            <dd className="mt-0.5 text-xs text-muted-foreground">{detail}</dd>
+          </div>
         ))}
-      </div>
+      </dl>
 
       <div className="grid gap-4 xl:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ChartNoAxesCombinedIcon aria-hidden="true" className="size-5" />
-              {t('analytics.velocityAndBurndown')}
-            </CardTitle>
+            <CardTitle>{t('analytics.velocityAndBurndown')}</CardTitle>
             <CardDescription>{t('analytics.velocityDescription')}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-72" role="img" aria-label={t('analytics.velocityChartLabel')}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={trend} margin={{ left: -20, right: 8 }}>
-                  <defs>
-                    <linearGradient id="remaining-fill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.35} />
-                      <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
                   <CartesianGrid stroke="var(--border)" strokeDasharray="4 4" vertical={false} />
                   <XAxis dataKey="displayDate" tick={{ fontSize: 11 }} minTickGap={24} />
                   <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
@@ -169,7 +146,8 @@ export function AnalyticsDashboard({
                     dataKey="remaining"
                     name={t('analytics.remaining')}
                     stroke="var(--chart-1)"
-                    fill="url(#remaining-fill)"
+                    fill="var(--chart-1)"
+                    fillOpacity={0.12}
                     strokeWidth={2}
                   />
                   <Area
@@ -194,10 +172,7 @@ export function AnalyticsDashboard({
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ActivityIcon aria-hidden="true" className="size-5" />
-              {t('analytics.teamWorkload')}
-            </CardTitle>
+            <CardTitle>{t('analytics.teamWorkload')}</CardTitle>
             <CardDescription>{t('analytics.workloadDescription')}</CardDescription>
           </CardHeader>
           <CardContent>
@@ -220,13 +195,13 @@ export function AnalyticsDashboard({
                       dataKey="openTasks"
                       name={t('analytics.open')}
                       fill="var(--chart-1)"
-                      radius={[0, 4, 4, 0]}
+                      radius={[0, 2, 2, 0]}
                     />
                     <Bar
                       dataKey="overdueTasks"
                       name={t('analytics.overdue')}
-                      fill="var(--destructive)"
-                      radius={[0, 4, 4, 0]}
+                      fill="var(--ochre)"
+                      radius={[0, 2, 2, 0]}
                     />
                   </BarChart>
                 </ResponsiveContainer>
@@ -245,9 +220,9 @@ export function AnalyticsDashboard({
           {data.projectProgress.length === 0 ? (
             <p className="text-muted-foreground text-sm">{t('analytics.noProjects')}</p>
           ) : (
-            <div className="grid gap-5 md:grid-cols-2">
+            <div className="grid gap-x-8 gap-y-5 md:grid-cols-2">
               {data.projectProgress.map((project) => (
-                <div key={project.projectId} className="space-y-2 rounded-lg border p-4">
+                <div key={project.projectId} className="space-y-2">
                   <div className="flex items-center justify-between gap-4">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">{project.projectName}</p>
@@ -270,7 +245,7 @@ export function AnalyticsDashboard({
                       })}
                     </span>
                     {project.overdueTasks > 0 ? (
-                      <span className="text-destructive">
+                      <span className="font-medium text-ochre-ink">
                         {t('analytics.overdueCount', { count: project.overdueTasks })}
                       </span>
                     ) : null}

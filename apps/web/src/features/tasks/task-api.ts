@@ -42,6 +42,7 @@ export function listProjectTasksRequest(
   if (query?.priority) params.set('priority', query.priority)
   if (query?.search) params.set('search', query.search)
   if (query?.archived !== undefined) params.set('archived', String(query.archived))
+  if (query?.pageSize) params.set('pageSize', String(query.pageSize))
   const suffix = params.size === 0 ? '' : `?${params.toString()}`
   return api.get<TaskListResult>(`/projects/${projectId}/tasks${suffix}`)
 }

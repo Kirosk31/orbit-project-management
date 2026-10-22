@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { PageContainer, PageHeader } from '@/components/shared/page'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -126,7 +127,7 @@ export function ProfilePage(): ReactNode {
 
   if (!user) {
     return (
-      <div className="mx-auto w-full max-w-2xl p-6">
+      <PageContainer width="narrow">
         <div className="flex flex-col gap-4">
           <Skeleton className="h-10 w-56" />
           <Card>
@@ -137,7 +138,7 @@ export function ProfilePage(): ReactNode {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </PageContainer>
     )
   }
 
@@ -196,12 +197,9 @@ export function ProfilePage(): ReactNode {
   const preferences = preferencesQuery.data
 
   return (
-    <div className="mx-auto w-full max-w-2xl p-6">
+    <PageContainer width="narrow">
       <div className="flex flex-col gap-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t('app.profile')}</h1>
-          <p className="text-muted-foreground text-sm">{t('app.account')}</p>
-        </div>
+        <PageHeader className="mb-0" title={t('app.profile')} description={t('app.account')} />
 
         <Card>
           <CardHeader>
@@ -227,14 +225,14 @@ export function ProfilePage(): ReactNode {
             </div>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            <div className="bg-muted/50 flex items-center gap-2 rounded-md px-3 py-2 text-sm">
+            <div className="flex items-center gap-2 border-b pb-3 text-sm last:border-b-0">
               <CalendarIcon className="text-muted-foreground size-4" />
               <span className="text-muted-foreground">{t('app.memberSince')}</span>
               <span className="ml-auto font-medium">
                 {formatDate(user.createdAt, i18n.language)}
               </span>
             </div>
-            <div className="bg-muted/50 flex items-center gap-2 rounded-md px-3 py-2 text-sm">
+            <div className="flex items-center gap-2 border-b pb-3 text-sm last:border-b-0">
               {user.isEmailVerified ? (
                 <ShieldCheckIcon className="text-success size-4" />
               ) : (
@@ -436,16 +434,16 @@ export function ProfilePage(): ReactNode {
             {t('app.logoutAll')}
           </Button>
           <Button
-            variant="destructive"
+            variant="ghost"
+            className="text-destructive hover:bg-[color-mix(in_srgb,var(--destructive)_10%,transparent)] hover:text-destructive"
             onClick={() => void handleLogout()}
             disabled={loggingOut}
-            className="sm:ml-auto"
           >
             <LogOutIcon />
             {t('auth.logout')}
           </Button>
         </div>
       </div>
-    </div>
+    </PageContainer>
   )
 }
