@@ -6,11 +6,25 @@ export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs))
 }
 
-export function formatRelativeTime(iso: string, locale: string): string {
-  return new Intl.RelativeTimeFormat(resolveFormattingLocale(locale), { numeric: 'auto' }).format(
-    0,
-    'day',
-  )
+const RELATIVE_UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+  ['year', 31_536_000],
+  ['month', 2_592_000],
+  ['week', 604_800],
+  ['day', 86_400],
+  ['hour', 3_600],
+  ['minute', 60],
+]
+
+/** "5 minutes ago", "yesterday", "in 3 days": the largest unit that fits. */
+export function formatRelativeTime(iso: string, locale: string, now: number = Date.now()): string {
+  const formatter = new Intl.RelativeTimeFormat(resolveFormattingLocale(locale), {
+    numeric: 'auto',
+  })
+  const seconds = Math.round((new Date(iso).getTime() - now) / 1000)
+  for (const [unit, size] of RELATIVE_UNITS) {
+    if (Math.abs(seconds) >= size) return formatter.format(Math.trunc(seconds / size), unit)
+  }
+  return formatter.format(0, 'second')
 }
 
 export function formatDate(iso: string, locale: string): string {
