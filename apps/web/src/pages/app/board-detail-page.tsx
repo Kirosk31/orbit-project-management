@@ -27,6 +27,7 @@ import { ColorSwatchPicker } from '@/components/shared/color-swatch-picker'
 import { EmptyState, PageContainer, PageHeader } from '@/components/shared/page'
 import { TilePanel } from '@orbit/brand'
 import { CompletionMark } from '@/features/tasks/completion-mark'
+import { useHotkeys } from '@/hooks/use-hotkeys'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -264,6 +265,13 @@ export function BoardDetailPage(): ReactNode {
   })
 
   const columns = columnsQuery.data ?? []
+
+  // "n" drops a new task into the first column, unless something is already open on top.
+  useHotkeys(['n'], () => {
+    const first = columns[0]
+    if (!first || document.querySelector('[role="dialog"]')) return
+    setAddTaskForColumn(first.id)
+  })
   const tasks = tasksQuery.data?.rows ?? []
   const isFiltering = Boolean(
     taskFilters.search ||
@@ -705,9 +713,18 @@ export function BoardDetailPage(): ReactNode {
                       size="sm"
                       className="justify-start text-muted-foreground hover:text-foreground"
                       onClick={() => setAddTaskForColumn(column.id)}
+                      aria-keyshortcuts={index === 0 ? 'N' : undefined}
                     >
                       <PlusIcon />
                       {t('tasks.addTask')}
+                      {index === 0 && (
+                        <kbd
+                          className="ml-auto hidden rounded border bg-muted px-1.5 font-sans text-[0.6875rem] leading-5 text-muted-foreground sm:inline"
+                          aria-hidden="true"
+                        >
+                          N
+                        </kbd>
+                      )}
                     </Button>
                   </div>
                 </section>
