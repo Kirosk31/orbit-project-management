@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import { cn } from '@/lib/utils'
+import { classNames } from './class-names'
 
 interface LogoProps {
   className?: string
@@ -15,7 +15,7 @@ interface LogoProps {
  */
 export function Logo({ className, wordmark = true, tone = 'default' }: LogoProps): ReactNode {
   return (
-    <span className={cn('inline-flex items-center gap-2.5', className)}>
+    <span className={classNames('inline-flex items-center gap-2.5', className)}>
       <svg viewBox="0 0 32 32" className="size-7 shrink-0" aria-hidden="true">
         <rect
           width="32"
@@ -34,7 +34,7 @@ export function Logo({ className, wordmark = true, tone = 'default' }: LogoProps
       </svg>
       {wordmark && (
         <span
-          className={cn(
+          className={classNames(
             'text-[1.0625rem] font-[650] tracking-[-0.01em]',
             tone === 'rail' ? 'text-rail-foreground' : 'text-foreground',
           )}

@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import type { ReactNode } from 'react'
 
-import { TileGlyph } from '@/components/shared/tile-panel'
+import { TileGlyph } from '@orbit/brand'
 
 const STEPS = [
   { titleKey: 'how.step1Title', descriptionKey: 'how.step1Description', state: 'done' },

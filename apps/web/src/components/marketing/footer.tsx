@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 
-import { Logo } from '@/components/shared/logo'
+import { Logo } from '@orbit/brand'
 import { LanguageSwitcher } from '@/features/i18n/language-switcher'
 import { ThemeToggle } from '@/features/theme/theme-toggle'
 

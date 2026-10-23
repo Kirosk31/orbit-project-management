@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { ArrowRightIcon, CircleCheckIcon } from 'lucide-react'
 
-import { TilePanel, type Tile } from '@/components/shared/tile-panel'
+import { TilePanel, type Tile } from '@orbit/brand'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 

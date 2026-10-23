@@ -3,6 +3,9 @@
 @import '@orbit/design-tokens/tokens.css';
 @import '@orbit/design-tokens/theme.css';
 
+/* Shared brand components live outside this app; Tailwind must scan them too. */
+@source '../../../../packages/brand/src';
+
 /* App-only keyframes and utilities. */
 @keyframes accordion-down {
   from {

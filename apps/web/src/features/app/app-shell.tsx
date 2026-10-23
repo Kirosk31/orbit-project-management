@@ -30,8 +30,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
-import { Logo } from '@/components/shared/logo'
-import { TileGlyph } from '@/components/shared/tile-panel'
+import { Logo, TileGlyph } from '@orbit/brand'
 import { useBreadcrumbStore } from '@/features/app/breadcrumbs'
 import { hardLogout, useAuthStore } from '@/features/auth/auth-store'
 import { logoutRequest } from '@/features/auth/auth-api'

@@ -14,7 +14,7 @@ import type { z } from 'zod'
 import { ColorSwatchPicker } from '@/components/shared/color-swatch-picker'
 import { EmptyState, PageContainer, PageHeader } from '@/components/shared/page'
 import { ProjectKeyBadge } from '@/components/shared/project-key-badge'
-import { TilePanel } from '@/components/shared/tile-panel'
+import { TilePanel } from '@orbit/brand'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {

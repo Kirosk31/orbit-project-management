@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import type { ReactNode } from 'react'
 
-import { TileGlyph, type TileState } from '@/components/shared/tile-panel'
+import { TileGlyph, type TileState } from '@orbit/brand'
 
 const FEATURES = [
   { key: 'kanban', state: 'done' },

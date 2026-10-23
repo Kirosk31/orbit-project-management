@@ -13,7 +13,7 @@ import {
   YAxis,
 } from 'recharts'
 
-import { TilePanel, type Tile } from '@/components/shared/tile-panel'
+import { TilePanel, type Tile } from '@orbit/brand'
 import { Skeleton } from '@/components/ui/skeleton'
 import { resolveFormattingLocale } from '@orbit/shared'
 

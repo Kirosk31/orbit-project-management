@@ -6,7 +6,7 @@ import { MenuIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
-import { Logo } from '@/components/shared/logo'
+import { Logo } from '@orbit/brand'
 import { LanguageSwitcher } from '@/features/i18n/language-switcher'
 import { useAuthStore } from '@/features/auth/auth-store'
 import { ThemeToggle } from '@/features/theme/theme-toggle'

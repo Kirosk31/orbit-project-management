@@ -2,7 +2,7 @@
 
 Orbit is a full-stack, multi-tenant project management platform for teams that need organizations, projects, Kanban boards, detailed tasks, collaboration, search, and delivery analytics in one product.
 
-This repository is a production-oriented portfolio project rather than a static demo. It contains a React application, an Express API, a relational PostgreSQL model, Redis-backed rate limiting and multi-instance realtime delivery, security-focused integration tests, browser accessibility tests, production containers, and automated CI gates.
+This repository is a production-oriented portfolio project rather than a static demo. It contains a React application, a Next.js public site, an Express API, a relational PostgreSQL model, Redis-backed rate limiting and multi-instance realtime delivery, security-focused integration tests, browser accessibility tests, production containers, and automated CI gates.
 
 ## Product capabilities
 
@@ -35,6 +35,7 @@ See [SECURITY.md](SECURITY.md), [the security audit](docs/SECURITY_AUDIT.md), an
 
 | Area     | Stack                                                                                                                                    |
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Site     | Next.js 16 App Router, static per-locale pages, `next/og`, sitemap and `hreflang` ([details](docs/public-site.md))                       |
 | Web      | React 19, TypeScript, Vite, React Router, TanStack Query, Zustand, Tailwind CSS, Radix UI, React Hook Form, Zod, Recharts, Framer Motion |
 | API      | Node.js 22, Express 5, TypeScript, Socket.IO, Pino                                                                                       |
 | Data     | PostgreSQL 16, Prisma 7, Redis 7                                                                                                         |
@@ -48,8 +49,12 @@ See [SECURITY.md](SECURITY.md), [the security audit](docs/SECURITY_AUDIT.md), an
 .
 |-- apps/
 |   |-- api/                 Express API, Socket.IO, Prisma, migrations, seed
+|   |-- site/                Next.js public site, five locales, SEO metadata
 |   `-- web/                 React application and localized UI
 |-- packages/
+|   |-- brand/               Logo and tile progress panel shared by web and site
+|   |-- design-tokens/       Azulejo OKLCH tokens and Tailwind v4 theme mapping
+|   |-- locales/             EN, ES, FR, PT-BR catalogs shared by web and site
 |   |-- shared/              Shared Zod contracts, types, permissions, events
 |   |-- eslint-config/
 |   |-- prettier-config/
@@ -258,6 +263,8 @@ Confirm the API readiness endpoint is green, the Vite terminal is still running,
 - [Production deployment and operations](docs/DEPLOYMENT.md)
 - [Safe GitHub publication checklist and project metadata](docs/GITHUB_RELEASE.md)
 - [Localization](docs/localization.md)
+- [Public site (Next.js)](docs/public-site.md)
+- [Azure DevOps pipeline](docs/azure-devops.md)
 - [Current-state audit](docs/CURRENT_STATE_AUDIT.md)
 - [Security audit](docs/SECURITY_AUDIT.md)
 - [Threat model](docs/THREAT_MODEL.md)

@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import { ArrowRightIcon } from 'lucide-react'
 
-import { TileGlyph, type TileState } from '@/components/shared/tile-panel'
+import { TileGlyph, type TileState } from '@orbit/brand'
 import { Button } from '@/components/ui/button'
 
 const WALL: TileState[] = Array.from({ length: 18 }, (_, index) =>

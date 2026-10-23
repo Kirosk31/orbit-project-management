@@ -2,8 +2,7 @@ import { useTranslation } from 'react-i18next'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 
-import { Logo } from '@/components/shared/logo'
-import { TileGlyph } from '@/components/shared/tile-panel'
+import { Logo, TileGlyph } from '@orbit/brand'
 import { Button } from '@/components/ui/button'
 
 /** A tile panel with one piece missing: the page that is not here. */

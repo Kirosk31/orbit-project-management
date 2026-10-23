@@ -2,8 +2,7 @@ import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Outlet } from 'react-router'
 
-import { Logo } from '@/components/shared/logo'
-import { TileGlyph, type TileState } from '@/components/shared/tile-panel'
+import { Logo, TileGlyph, type TileState } from '@orbit/brand'
 import { LanguageSwitcher } from '@/features/i18n/language-switcher'
 import { ThemeToggle } from '@/features/theme/theme-toggle'
 

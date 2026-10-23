@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react'
 
-import { cn } from '@/lib/utils'
+import { classNames } from './class-names'
 
 export type TileState = 'done' | 'open' | 'overdue'
 
@@ -42,7 +42,7 @@ export function TilePanel({
     <div
       role="img"
       aria-label={label}
-      className={cn('grid w-fit gap-[3px]', className)}
+      className={classNames('grid w-fit gap-[3px]', className)}
       style={{
         gridTemplateColumns: `repeat(${Math.min(columns, Math.max(tiles.length, 1))}, ${size}px)`,
       }}

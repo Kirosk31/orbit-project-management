@@ -225,6 +225,17 @@ export const en = {
     contact: 'Contact',
     rights: 'All rights reserved.',
   },
+  site: {
+    metaTitle: 'Orbit: calm project management for Latin American teams',
+    metaDescription:
+      'Boards, tasks, time tracking and analytics in one calm place, in Spanish, Portuguese, English and French, with tenant isolation enforced by the API.',
+    skipToContent: 'Skip to content',
+    languageMenu: 'Language',
+    themeToDark: 'Switch to dark theme',
+    themeToLight: 'Switch to light theme',
+    replay: 'Replay the board',
+    demoNote: 'Demonstration board. Not customer data.',
+  },
   command: {
     title: 'Command palette',
     description: 'Search your authorized workspaces and run application commands.',

@@ -6,13 +6,13 @@ with Azure Pipelines connected to it.
 
 ## Pipeline layout
 
-| Stage        | What it proves                                                                                                                           |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `Quality`    | Lint, typecheck, API/web/shared tests against real PostgreSQL 16 and Redis 7 service containers, production build, Prettier, `npm audit` |
-| `Browser`    | Playwright journeys plus Axe accessibility checks, with traces uploaded on failure                                                       |
-| `Containers` | The production Compose file validates and every image builds                                                                             |
-| `Secrets`    | gitleaks scans the full history                                                                                                          |
-| `Staging`    | Optional. Pushes `api`, `worker` and `web` images to Azure Container Registry, behind an approval gate                                   |
+| Stage        | What it proves                                                                                                                                |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Quality`    | Lint, typecheck, API/web/shared/site tests against real PostgreSQL 16 and Redis 7 service containers, production build, Prettier, `npm audit` |
+| `Browser`    | Playwright journeys plus Axe checks for the app and the Next.js site, with traces uploaded on failure                                         |
+| `Containers` | The production Compose file validates and every image builds                                                                                  |
+| `Secrets`    | gitleaks scans the full history                                                                                                               |
+| `Staging`    | Optional. Pushes `api`, `worker` and `web` images to Azure Container Registry, behind an approval gate                                        |
 
 `Quality`, `Browser`, `Containers` and `Secrets` run in parallel. Test results from Vitest and
 Playwright are published in JUnit format, so they appear in the run's **Tests** tab and in

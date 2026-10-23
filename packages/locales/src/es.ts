@@ -226,6 +226,17 @@ export const es = {
     contact: 'Contacto',
     rights: 'Todos los derechos reservados.',
   },
+  site: {
+    metaTitle: 'Orbit: gestión de proyectos tranquila para equipos de Latinoamérica',
+    metaDescription:
+      'Tableros, tareas, tiempo y analítica en un solo lugar tranquilo, en español, portugués, inglés y francés, con aislamiento por espacio de trabajo verificado en la API.',
+    skipToContent: 'Saltar al contenido',
+    languageMenu: 'Idioma',
+    themeToDark: 'Cambiar a tema oscuro',
+    themeToLight: 'Cambiar a tema claro',
+    replay: 'Repetir el tablero',
+    demoNote: 'Tablero de demostración. No son datos de clientes.',
+  },
   command: {
     title: 'Paleta de comandos',
     description: 'Busca en tus espacios autorizados y ejecuta comandos de la aplicación.',

@@ -6,7 +6,7 @@ import { Link, useNavigate } from 'react-router'
 import type { ReactNode } from 'react'
 
 import { EmptyState, PageContainer, PageHeader, SectionHeader } from '@/components/shared/page'
-import { TilePanel } from '@/components/shared/tile-panel'
+import { TilePanel } from '@orbit/brand'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AnalyticsDashboard } from '@/features/analytics/analytics-dashboard'

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import { TileGlyph, type TileState } from '@/components/shared/tile-panel'
+import { TileGlyph, type TileState } from '@orbit/brand'
 import { cn } from '@/lib/utils'
 
 const WIDTHS = {

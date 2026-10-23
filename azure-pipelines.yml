@@ -90,6 +90,12 @@ stages:
               --outputFile.junit=$(Common.TestResultsDirectory)/shared-junit.xml
             displayName: Shared package tests
 
+          - script: >-
+              npm run test --workspace=@orbit/site --
+              --reporter=default --reporter=junit
+              --outputFile.junit=$(Common.TestResultsDirectory)/site-junit.xml
+            displayName: Public site unit tests
+
           - task: PublishTestResults@2
             displayName: Publish unit test results
             condition: succeededOrFailed()
@@ -129,12 +135,17 @@ stages:
           - script: npx playwright test --reporter=junit,list
             displayName: Run browser tests
 
+          - script: npm run test:e2e --workspace=@orbit/site -- --reporter=junit,list
+            displayName: Run public site smoke tests
+            env:
+              PLAYWRIGHT_JUNIT_OUTPUT_NAME: $(Common.TestResultsDirectory)/site-e2e-junit.xml
+
           - task: PublishTestResults@2
             displayName: Publish browser test results
             condition: succeededOrFailed()
             inputs:
               testResultsFormat: JUnit
-              testResultsFiles: '$(Common.TestResultsDirectory)/e2e-junit.xml'
+              testResultsFiles: '$(Common.TestResultsDirectory)/*e2e-junit.xml'
               testRunTitle: Browser and accessibility
 
           - publish: test-results

@@ -228,6 +228,17 @@ export const fr = {
     contact: 'Contact',
     rights: 'Tous droits réservés.',
   },
+  site: {
+    metaTitle: "Orbit : la gestion de projet sereine pour les équipes d'Amérique latine",
+    metaDescription:
+      "Tableaux, tâches, suivi du temps et analyses dans un seul endroit serein, en espagnol, portugais, anglais et français, avec une isolation des espaces vérifiée par l'API.",
+    skipToContent: 'Aller au contenu',
+    languageMenu: 'Langue',
+    themeToDark: 'Passer au thème sombre',
+    themeToLight: 'Passer au thème clair',
+    replay: 'Rejouer le tableau',
+    demoNote: 'Tableau de démonstration. Aucune donnée client.',
+  },
   command: {
     title: 'Palette de commandes',
     description: 'Recherchez dans vos espaces autorisés et exécutez des commandes.',

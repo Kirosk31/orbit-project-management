@@ -1,4 +1,4 @@
-import type { Tile, TileState } from '@/components/shared/tile-panel'
+import type { Tile, TileState } from '@orbit/brand'
 
 const TILE_ORDER: Record<TileState, number> = { done: 0, overdue: 1, open: 2 }
 
