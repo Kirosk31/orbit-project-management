@@ -1,7 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createProjectSchema } from '@orbit/shared'
+import type { TaskDto } from '@orbit/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { PlusIcon, StarIcon, UsersIcon } from 'lucide-react'
+import { PlusIcon, StarIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router'
 import { useForm } from 'react-hook-form'
@@ -12,6 +13,8 @@ import type { z } from 'zod'
 
 import { ColorSwatchPicker } from '@/components/shared/color-swatch-picker'
 import { EmptyState, PageContainer, PageHeader } from '@/components/shared/page'
+import { ProjectKeyBadge } from '@/components/shared/project-key-badge'
+import { TilePanel } from '@/components/shared/tile-panel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -25,25 +28,16 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import { listOrganizationsRequest } from '@/features/organizations/org-api'
 import { createProjectRequest, listProjectsRequest } from '@/features/projects/project-api'
-import { readStorageItem, writeStorageItem } from '@/lib/browser-storage'
+import { useProjectTasks } from '@/features/tasks/use-project-tasks'
+import { useActiveWorkspace } from '@/features/workspace/use-active-workspace'
 import { PALETTE_COLORS } from '@/lib/task-colors'
-import { formatDate, getContrastTextColor } from '@/lib/utils'
+import { tilesFromTasks } from '@/lib/tiles'
 
 const PROJECT_COLORS = PALETTE_COLORS
-
-const SELECTED_ORG_KEY = 'orbit.selectedOrgSlug'
 
 function keyFromName(name: string): string {
   const letters = name
@@ -55,33 +49,15 @@ function keyFromName(name: string): string {
 }
 
 export function ProjectsPage(): ReactNode {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [selectedOrg, setSelectedOrg] = useState<string | null>(
-    () => readStorageItem(SELECTED_ORG_KEY) ?? null,
-  )
+  const { active } = useActiveWorkspace()
   const [filter, setFilter] = useState<'all' | 'favorites' | 'archived'>('all')
-
-  const orgsQuery = useQuery({
-    queryKey: ['organizations'],
-    queryFn: listOrganizationsRequest,
-  })
-
-  const activeOrg =
-    orgsQuery.data?.find((org) => org.slug === selectedOrg) ??
-    orgsQuery.data?.find((org) => !org.isPersonal) ??
-    orgsQuery.data?.[0] ??
-    null
-
-  useEffect(() => {
-    if (activeOrg) {
-      writeStorageItem(SELECTED_ORG_KEY, activeOrg.slug)
-    }
-  }, [activeOrg])
+  const activeOrg = active ?? null
 
   const projectsQuery = useQuery({
-    queryKey: ['projects', activeOrg?.slug],
+    queryKey: ['projects', activeOrg?.slug, filter === 'archived' ? 'archived' : 'active'],
     queryFn: () => listProjectsRequest(activeOrg!.slug, filter === 'archived' ? true : undefined),
     enabled: activeOrg !== null,
   })
@@ -118,6 +94,8 @@ export function ProjectsPage(): ReactNode {
       createForm.setValue('key', keyFromName(nameValue), { shouldValidate: true })
     }
   }, [nameValue, createForm])
+
+  const projectTasks = useProjectTasks((projectsQuery.data ?? []).map((project) => project.id))
 
   const visibleProjects =
     projectsQuery.data?.filter((project) => {
@@ -200,31 +178,7 @@ export function ProjectsPage(): ReactNode {
       <PageHeader
         title={t('projects.title')}
         description={t('projects.subtitle')}
-        actions={
-          <>
-            {activeOrg && (orgsQuery.data?.length ?? 0) > 1 && (
-              <Select
-                value={activeOrg.slug}
-                onValueChange={(slug) => {
-                  setSelectedOrg(slug)
-                  queryClient.invalidateQueries({ queryKey: ['projects'] })
-                }}
-              >
-                <SelectTrigger className="w-56" aria-label={t('dashboard.activeWorkspace')}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent align="end">
-                  {orgsQuery.data?.map((org) => (
-                    <SelectItem key={org.id} value={org.slug}>
-                      {org.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            {createDialog}
-          </>
-        }
+        actions={<>{createDialog}</>}
       />
 
       {!activeOrg ? (
@@ -259,16 +213,7 @@ export function ProjectsPage(): ReactNode {
                         to={`/app/projects/${project.id}`}
                         className="flex items-center gap-4 px-4 py-3.5 transition-colors duration-150 hover:bg-accent/60"
                       >
-                        <span
-                          className="flex size-9 shrink-0 items-center justify-center rounded-md text-[0.6875rem] font-bold tracking-wide"
-                          style={{
-                            backgroundColor: project.color,
-                            color: getContrastTextColor(project.color),
-                          }}
-                          aria-hidden="true"
-                        >
-                          {project.key.slice(0, 4)}
-                        </span>
+                        <ProjectKeyBadge projectKey={project.key} color={project.color} />
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center gap-2">
                             <span className="truncate font-medium">{project.name}</span>
@@ -286,13 +231,10 @@ export function ProjectsPage(): ReactNode {
                             {project.description || project.key}
                           </span>
                         </span>
-                        <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
-                          <UsersIcon className="size-3.5" aria-hidden="true" />
-                          {t('projects.memberCount', { count: project.memberCount })}
-                        </span>
-                        <span className="hidden w-28 text-right text-xs text-muted-foreground tabular-nums md:block">
-                          {formatDate(project.createdAt, i18n.language)}
-                        </span>
+                        <ProjectProgress
+                          name={project.name}
+                          tasks={projectTasks.byProject.get(project.id)}
+                        />
                       </Link>
                     </li>
                   ))}
@@ -309,5 +251,48 @@ export function ProjectsPage(): ReactNode {
         </>
       )}
     </PageContainer>
+  )
+}
+
+function ProjectProgress({
+  name,
+  tasks,
+}: {
+  name: string
+  tasks: TaskDto[] | undefined
+}): ReactNode {
+  const { t } = useTranslation()
+  if (!tasks) return <Skeleton className="hidden h-4 w-40 sm:block" />
+  if (tasks.length === 0) {
+    return (
+      <span className="hidden text-xs text-muted-foreground sm:block">
+        {t('dashboard.noTasksYet')}
+      </span>
+    )
+  }
+  const tiles = tilesFromTasks(tasks)
+  const done = tiles.filter((tile) => tile.state === 'done').length
+  const overdue = tiles.filter((tile) => tile.state === 'overdue').length
+  return (
+    <span className="hidden shrink-0 items-center gap-3 sm:flex">
+      <TilePanel
+        tiles={tiles}
+        size={12}
+        columns={16}
+        max={32}
+        label={t('dashboard.projectProgressLabel', {
+          name,
+          done: String(done),
+          total: String(tiles.length),
+          overdue: String(overdue),
+        })}
+      />
+      <span
+        className="w-10 text-right text-xs text-muted-foreground tabular-nums"
+        aria-hidden="true"
+      >
+        {done}/{tiles.length}
+      </span>
+    </span>
   )
 }

@@ -1,35 +1,26 @@
 import type { NotificationDto, ProjectDto, TaskDto } from '@orbit/shared'
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRightIcon, CircleCheckIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router'
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 
 import { EmptyState, PageContainer, PageHeader, SectionHeader } from '@/components/shared/page'
 import { TilePanel } from '@/components/shared/tile-panel'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { AnalyticsDashboard } from '@/features/analytics/analytics-dashboard'
 import { organizationAnalyticsRequest } from '@/features/analytics/analytics-api'
 import { useAuthStore } from '@/features/auth/auth-store'
 import { NotificationRow } from '@/features/notification-row'
 import { listNotificationsRequest, markReadRequest } from '@/features/notifications-api'
-import { listOrganizationsRequest } from '@/features/organizations/org-api'
+import { useActiveWorkspace } from '@/features/workspace/use-active-workspace'
 import { listProjectsRequest } from '@/features/projects/project-api'
-import { listProjectTasksRequest } from '@/features/tasks/task-api'
+import { useProjectTasks } from '@/features/tasks/use-project-tasks'
 import { DueDate, PriorityMark } from '@/features/tasks/task-meta'
-import { readStorageItem, writeStorageItem } from '@/lib/browser-storage'
 import { dueStateOf } from '@/lib/due'
 import { tilesFromTasks } from '@/lib/tiles'
 
-const WORKSPACE_STORAGE_KEY = 'orbit.dashboard.workspace'
 const MAX_PROJECTS = 8
 
 type GroupKey = 'overdue' | 'today' | 'week' | 'later' | 'none'
@@ -62,20 +53,8 @@ export function DashboardPage(): ReactNode {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const user = useAuthStore((state) => state.user)
-  const [selectedOrganization, setSelectedOrganization] = useState<string | null>(() =>
-    readStorageItem(WORKSPACE_STORAGE_KEY),
-  )
   const now = new Date()
-
-  const organizationsQuery = useQuery({
-    queryKey: ['organizations'],
-    queryFn: listOrganizationsRequest,
-  })
-  const organizations = organizationsQuery.data ?? []
-  const activeOrg =
-    organizations.find((organization) => organization.slug === selectedOrganization) ??
-    organizations.find((organization) => !organization.isPersonal) ??
-    organizations[0]
+  const { organizations, active: activeOrg, isLoading: organizationsLoading } = useActiveWorkspace()
 
   const projectsQuery = useQuery({
     queryKey: ['dashboard', 'projects', activeOrg?.slug],
@@ -87,21 +66,12 @@ export function DashboardPage(): ReactNode {
     .sort((a, b) => Number(b.isFavorite) - Number(a.isFavorite))
     .slice(0, MAX_PROJECTS)
 
-  const taskQueries = useQueries({
-    queries: projects.map((project) => ({
-      queryKey: ['dashboard', 'project-tasks', project.id],
-      queryFn: () => listProjectTasksRequest(project.id, { pageSize: 100 }),
-      staleTime: 30_000,
-    })),
-  })
-  const tasksLoading = projectsQuery.isLoading || taskQueries.some((query) => query.isLoading)
+  const projectTasks = useProjectTasks(projects.map((project) => project.id))
+  const tasksLoading = projectsQuery.isLoading || projectTasks.isLoading
   const projectById = new Map(projects.map((project) => [project.id, project]))
-  const allTasks = taskQueries.flatMap((query) => query.data?.rows ?? [])
+  const allTasks = [...projectTasks.byProject.values()].flat()
   const myOpenTasks = allTasks.filter(
-    (task) =>
-      !task.isCompleted &&
-      !task.parentId &&
-      task.assignees.some((assignee) => assignee.userId === user?.id),
+    (task) => !task.isCompleted && task.assignees.some((assignee) => assignee.userId === user?.id),
   )
   const groups = GROUP_ORDER.map((key) => ({
     key,
@@ -140,33 +110,16 @@ export function DashboardPage(): ReactNode {
   return (
     <PageContainer width="wide">
       <PageHeader
-        title={firstName ? t(greetingKey(now), { name: firstName }) : t('dashboard.title')}
-        description={<span className="first-letter:uppercase">{todayLabel}</span>}
-        actions={
-          organizations.length > 1 ? (
-            <Select
-              value={activeOrg?.slug}
-              onValueChange={(value) => {
-                setSelectedOrganization(value)
-                writeStorageItem(WORKSPACE_STORAGE_KEY, value)
-              }}
-            >
-              <SelectTrigger className="w-full sm:w-60" aria-label={t('dashboard.activeWorkspace')}>
-                <SelectValue placeholder={t('dashboard.selectWorkspace')} />
-              </SelectTrigger>
-              <SelectContent align="end">
-                {organizations.map((organization) => (
-                  <SelectItem key={organization.id} value={organization.slug}>
-                    {organization.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : null
+        title={t('dashboard.title')}
+        description={
+          <>
+            {firstName ? `${t(greetingKey(now), { name: firstName })}. ` : null}
+            <span className="inline-block first-letter:uppercase">{todayLabel}</span>
+          </>
         }
       />
 
-      {!organizationsQuery.isLoading && organizations.length === 0 ? (
+      {!organizationsLoading && organizations.length === 0 ? (
         <EmptyState
           title={t('dashboard.noOrganizations')}
           action={
@@ -257,9 +210,8 @@ export function DashboardPage(): ReactNode {
                 />
               ) : (
                 <ul className="flex flex-col gap-1">
-                  {projects.map((project, index) => {
-                    const tasks = taskQueries[index]?.data?.rows ?? []
-                    const tiles = tilesFromTasks(tasks.filter((task) => !task.parentId))
+                  {projects.map((project) => {
+                    const tiles = tilesFromTasks(projectTasks.byProject.get(project.id) ?? [])
                     const done = tiles.filter((tile) => tile.state === 'done').length
                     const overdue = tiles.filter((tile) => tile.state === 'overdue').length
                     return (

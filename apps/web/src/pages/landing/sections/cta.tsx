@@ -29,7 +29,7 @@ export function CtaSection(): ReactNode {
             </p>
             <Button
               size="lg"
-              className="mt-8 bg-ochre text-warning-foreground hover:bg-[color-mix(in_srgb,var(--ochre)_88%,white)]"
+              className="mt-8 bg-rail-foreground text-rail hover:bg-[color-mix(in_srgb,var(--rail-foreground)_88%,var(--rail-accent))]"
               asChild
             >
               <Link to="/register">

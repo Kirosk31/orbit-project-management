@@ -172,7 +172,7 @@ export function HeroSection(): ReactNode {
             style={{ fontStretch: '112%' }}
           >
             {t('hero.title')}{' '}
-            <span className="block pt-3 text-[0.55em] leading-tight font-medium tracking-[-0.015em] text-ochre">
+            <span className="block pt-3 text-[0.55em] leading-tight font-medium tracking-[-0.015em] text-rail-muted-foreground">
               {t('hero.titleAccent')}
             </span>
           </h1>
@@ -182,7 +182,7 @@ export function HeroSection(): ReactNode {
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
             <Button
               size="lg"
-              className="bg-ochre text-warning-foreground hover:bg-[color-mix(in_srgb,var(--ochre)_88%,white)]"
+              className="bg-rail-foreground text-rail hover:bg-[color-mix(in_srgb,var(--rail-foreground)_88%,var(--rail-accent))]"
               asChild
             >
               <Link to="/register">

@@ -8,7 +8,6 @@ import { toast } from 'sonner'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { SecureAvatarImage } from '@/features/users/secure-avatar-image'
 import {
   deleteAttachmentRequest,
@@ -107,9 +106,11 @@ export function TaskAttachments({ taskId }: { taskId: string }): ReactNode {
           }}
         >
           <div className="min-w-0 flex-1">
-            <Input
+            <input
               ref={inputRef}
+              id="attachment-file"
               type="file"
+              className="sr-only"
               accept={ACCEPTED_EXTENSIONS}
               aria-label={t('tasks.chooseAttachment')}
               onChange={(event) => {
@@ -123,6 +124,20 @@ export function TaskAttachments({ taskId }: { taskId: string }): ReactNode {
                 setSelectedFile(file)
               }}
             />
+            <div className="flex min-w-0 items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => inputRef.current?.click()}
+              >
+                <PaperclipIcon />
+                {t('tasks.chooseFile')}
+              </Button>
+              <span className="min-w-0 truncate text-sm text-muted-foreground" aria-live="polite">
+                {selectedFile?.name ?? t('tasks.noFileSelected')}
+              </span>
+            </div>
             <p className="text-muted-foreground mt-1 text-xs">{t('tasks.attachmentHelp')}</p>
           </div>
           <Button

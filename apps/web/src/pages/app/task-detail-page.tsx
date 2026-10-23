@@ -11,6 +11,7 @@ import {
   PlusIcon,
   TagIcon,
   Trash2Icon,
+  TriangleAlertIcon,
   UserPlusIcon,
   XIcon,
 } from 'lucide-react'
@@ -23,6 +24,7 @@ import { toast } from 'sonner'
 import type { z } from 'zod'
 
 import { ColorSwatchPicker } from '@/components/shared/color-swatch-picker'
+import { DateField } from '@/components/shared/date-field'
 import { EmptyState, PageContainer } from '@/components/shared/page'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -75,7 +77,11 @@ import { TaskChecklists } from '@/features/tasks/task-checklists'
 import { TaskTimeTracking } from '@/features/tasks/task-time-tracking'
 import { TaskAttachments } from '@/features/tasks/task-attachments'
 import { useProjectRealtime } from '@/features/realtime/use-project-realtime'
-import { DueDate, PriorityMark } from '@/features/tasks/task-meta'
+import { useBreadcrumbs } from '@/features/app/breadcrumbs'
+import { getBoardRequest } from '@/features/boards/board-api'
+import { getProjectRequest } from '@/features/projects/project-api'
+import { PriorityMark } from '@/features/tasks/task-meta'
+import { dueStateOf } from '@/lib/due'
 import { COLUMN_COLORS } from '@/lib/task-colors'
 import { cn, formatRelativeTime, initialsOf } from '@/lib/utils'
 
@@ -126,6 +132,36 @@ export function TaskDetailPage(): ReactNode {
 
   const task = taskQuery.data
   useProjectRealtime(task?.projectId ?? '')
+
+  const projectQuery = useQuery({
+    queryKey: ['project', task?.projectId],
+    queryFn: () => getProjectRequest(task!.projectId),
+    enabled: task !== undefined,
+  })
+  const boardQuery = useQuery({
+    queryKey: ['board', task?.boardId],
+    queryFn: () => getBoardRequest(task!.boardId!),
+    enabled: Boolean(task?.boardId),
+  })
+  const parentQuery = useQuery({
+    queryKey: ['task', task?.parentId],
+    queryFn: () => getTaskRequest(task!.parentId!),
+    enabled: Boolean(task?.parentId),
+  })
+  const projectName = projectQuery.data?.name
+  const boardName = boardQuery.data?.name
+  useBreadcrumbs(
+    task
+      ? [
+          { label: projectName ?? '…', to: `/app/projects/${task.projectId}` },
+          ...(task.boardId ? [{ label: boardName ?? '…', to: `/app/boards/${task.boardId}` }] : []),
+          ...(task.parentId
+            ? [{ label: parentQuery.data?.title ?? '…', to: `/app/tasks/${task.parentId}` }]
+            : []),
+          { label: task.title },
+        ]
+      : [],
+  )
 
   const membersQuery = useQuery({
     queryKey: ['org-members', task?.orgId],
@@ -290,7 +326,9 @@ export function TaskDetailPage(): ReactNode {
         }
       >
         <ArrowLeftIcon className="size-3.5" />
-        {task.parentId ? t('tasks.backToParent') : t('tasks.backToBoard')}
+        {task.parentId
+          ? (parentQuery.data?.title ?? t('tasks.backToParent'))
+          : (boardName ?? t('tasks.backToBoard'))}
       </Button>
 
       <div className="grid gap-x-12 gap-y-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
@@ -458,25 +496,24 @@ export function TaskDetailPage(): ReactNode {
               </PropertyRow>
 
               <PropertyRow label={t('tasks.dueDate')} htmlFor="task-due">
-                <Input
+                <DateField
                   id="task-due"
-                  type="date"
-                  className="h-8"
-                  defaultValue={task.dueDate?.slice(0, 10) ?? ''}
-                  onChange={(event) => {
-                    const value = event.currentTarget.value
+                  value={task.dueDate?.slice(0, 10) ?? ''}
+                  onChange={(value) =>
                     updateMutation.mutate({
                       dueDate: value ? new Date(`${value}T23:59:59.000Z`).toISOString() : null,
                     })
-                  }}
+                  }
                 />
-                {task.dueDate && !task.isCompleted && (
-                  <DueDate
-                    dueDate={task.dueDate}
-                    isCompleted={task.isCompleted}
-                    className="mt-1.5"
-                  />
-                )}
+                {task.dueDate &&
+                  ['overdue', 'today'].includes(dueStateOf(task.dueDate, task.isCompleted)) && (
+                    <p className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-ochre-ink">
+                      <TriangleAlertIcon className="size-3.5" aria-hidden="true" />
+                      {dueStateOf(task.dueDate, task.isCompleted) === 'overdue'
+                        ? t('tasks.overdue')
+                        : t('tasks.dueToday')}
+                    </p>
+                  )}
               </PropertyRow>
 
               <PropertyRow

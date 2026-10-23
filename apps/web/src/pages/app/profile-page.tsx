@@ -203,7 +203,7 @@ export function ProfilePage(): ReactNode {
 
         <Card>
           <CardHeader>
-            <div className="flex items-center gap-4">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
               <Avatar className="size-16">
                 <SecureAvatarImage
                   userId={user.id}
@@ -212,14 +212,11 @@ export function ProfilePage(): ReactNode {
                 />
                 <AvatarFallback className="text-lg">{initialsOf(user.fullName)}</AvatarFallback>
               </Avatar>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <CardTitle className="truncate">{user.fullName}</CardTitle>
                 <CardDescription className="truncate">{user.email}</CardDescription>
               </div>
-              <Badge
-                variant={user.isEmailVerified ? 'success' : 'warning'}
-                className="ml-auto shrink-0"
-              >
+              <Badge variant={user.isEmailVerified ? 'success' : 'warning'} className="shrink-0">
                 {user.isEmailVerified ? t('app.emailVerified') : t('app.emailNotVerified')}
               </Badge>
             </div>

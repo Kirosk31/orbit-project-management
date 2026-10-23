@@ -52,7 +52,7 @@ export const es = {
     title: 'Planifica. Haz seguimiento. Entrega.',
     titleAccent: 'Trabajo que se mantiene en órbita.',
     subtitle:
-      'Orbit es la plataforma de gestión de proyectos que mantiene cada tarea, fecha límite y conversación sincronizada — rápida, enfocada y hermosa.',
+      'Tableros, tareas, tiempo y analítica en un solo lugar tranquilo, hecho para equipos de Latinoamérica que trabajan en español y portugués.',
     ctaPrimary: 'Empezar gratis',
     ctaSecondary: 'Verlo en acción',
     statsProjects: 'Idiomas de interfaz',
@@ -196,6 +196,15 @@ export const es = {
     q5: '¿Qué idiomas están disponibles?',
     a5: 'La interfaz completa está disponible en inglés, español, francés y portugués de Brasil.',
   },
+  proof: {
+    heading: 'En serio con el trabajo, y con quién lo ve',
+    latamTitle: 'Nativo en el idioma de tu equipo',
+    latamBody:
+      'Español, portugués de Brasil, inglés y francés son de primera clase, se guardan por persona, con fechas y números en cada idioma.',
+    securityTitle: 'Cada espacio de trabajo, aislado',
+    securityBody:
+      'La API verifica la membresía de organización y proyecto en cada solicitud, con cinco roles, sesiones revocables y registro de auditoría.',
+  },
   cta: {
     title: '¿Listo para poner tu trabajo en órbita?',
     subtitle: 'Crea un espacio de trabajo y explora el flujo completo en tu propio despliegue.',
@@ -331,6 +340,12 @@ export const es = {
     invalidAvatar: 'El avatar debe ser una imagen JPEG, PNG o WebP',
     searchOrJump: 'Buscar o ir a…',
     accountMenu: 'Menú de la cuenta',
+    workspace: 'Espacio de trabajo',
+    switchWorkspace: 'Cambiar de espacio de trabajo',
+    manageWorkspaces: 'Administrar espacios de trabajo',
+    recentProjects: 'En este espacio',
+    breadcrumb: 'Estás aquí',
+    personalWorkspace: 'Personal',
   },
   org: {
     title: 'Organizaciones',
@@ -347,7 +362,8 @@ export const es = {
     empty: 'Aún no hay organizaciones',
     emptyHint: 'Crea tu primer espacio de trabajo para empezar a colaborar.',
     members: 'Miembros',
-    memberCount: '{{count}} miembros',
+    memberCount_one: '{{count}} miembro',
+    memberCount_other: '{{count}} miembros',
     invite: 'Invitar miembro',
     inviteDescription: 'Invita a alguien por correo. Recibirás un token para compartir.',
     inviteEmail: 'Correo electrónico',
@@ -405,7 +421,8 @@ export const es = {
     created: 'Proyecto creado',
     updated: 'Proyecto actualizado',
     members: 'Miembros',
-    memberCount: '{{count}} miembros',
+    memberCount_one: '{{count}} miembro',
+    memberCount_other: '{{count}} miembros',
     addMember: 'Agregar miembro',
     selectMember: 'Selecciona un miembro',
     memberAdded: 'Miembro agregado al proyecto',
@@ -641,6 +658,11 @@ export const es = {
     status: 'Estado',
     editTitle: 'Editar título',
     dangerZone: 'Acciones de la tarea',
+    chooseFile: 'Elegir archivo',
+    noFileSelected: 'Ningún archivo seleccionado',
+    pickDate: 'Elegir fecha',
+    clearDate: 'Quitar fecha',
+    noDueDate: 'Sin fecha',
   },
   notifications: {
     openMenu: 'Abrir notificaciones',
@@ -752,6 +774,8 @@ export const es = {
     projectProgressLabel: '{{project}} tiene un {{progress}}% de avance',
     completedOfTotal: '{{completed}} de {{total}} completadas',
     overdueCount: '{{count}} vencidas',
+    summarySentence:
+      '{{total}} tareas en juego, {{open}} aún abiertas. {{completed}} completadas en los últimos {{days}} días ({{rate}}% del total), {{overdue}} vencidas y {{hours}} h registradas.',
   },
   comments: {
     title: 'Comentarios',

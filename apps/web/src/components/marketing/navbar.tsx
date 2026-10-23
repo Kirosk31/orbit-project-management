@@ -51,7 +51,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }): ReactNode {
 }
 
 const OCHRE_BUTTON =
-  'bg-ochre text-warning-foreground hover:bg-[color-mix(in_srgb,var(--ochre)_88%,white)]'
+  'bg-rail-foreground text-rail hover:bg-[color-mix(in_srgb,var(--rail-foreground)_88%,var(--rail-accent))]'
 
 export function Navbar(): ReactNode {
   const { t } = useTranslation()

@@ -82,6 +82,8 @@ import {
 } from '@/features/tasks/task-meta'
 import { TaskBoardFilters } from '@/features/tasks/task-board-filters'
 import { useProjectRealtime } from '@/features/realtime/use-project-realtime'
+import { useBreadcrumbs } from '@/features/app/breadcrumbs'
+import { getProjectRequest } from '@/features/projects/project-api'
 import { BoardListView } from '@/features/boards/board-list-view'
 import { COLUMN_COLORS } from '@/lib/task-colors'
 import { tilesFromTasks } from '@/lib/tiles'
@@ -111,6 +113,22 @@ export function BoardDetailPage(): ReactNode {
 
   const board = boardQuery.data
   const onlineUserIds = useProjectRealtime(board?.projectId ?? '')
+
+  const projectQuery = useQuery({
+    queryKey: ['project', board?.projectId],
+    queryFn: () => getProjectRequest(board!.projectId),
+    enabled: board !== undefined,
+  })
+  const projectName = projectQuery.data?.name
+  useBreadcrumbs(
+    board
+      ? [
+          { label: t('projects.title'), to: '/app/projects' },
+          { label: projectName ?? '…', to: `/app/projects/${board.projectId}` },
+          { label: board.name },
+        ]
+      : [],
+  )
 
   const columnsQuery = useQuery({
     queryKey: ['board-columns', boardId],
@@ -313,7 +331,7 @@ export function BoardDetailPage(): ReactNode {
             onClick={() => navigate(`/app/projects/${board.projectId}`)}
           >
             <ArrowLeftIcon className="size-3.5" />
-            {t('boards.backToProject')}
+            {projectName ?? t('boards.backToProject')}
           </Button>
         }
         title={board.name}
@@ -483,7 +501,7 @@ export function BoardDetailPage(): ReactNode {
           </div>
         ) : (
           <div
-            className="-mx-4 flex items-start gap-3 overflow-x-auto px-4 pb-6 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"
+            className="-mx-4 flex items-start gap-3 overflow-x-auto pr-16 pb-6 pl-4 [mask-image:linear-gradient(to_right,black_calc(100%-3rem),transparent)] sm:-mx-6 sm:pl-6 lg:-mx-8 lg:pl-8"
             onDragOver={(event) => event.preventDefault()}
             onDrop={(event) => handleDrop(event, null)}
           >

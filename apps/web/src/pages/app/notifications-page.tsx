@@ -81,7 +81,7 @@ export function NotificationsPage(): ReactNode {
         }}
         className="mb-4"
       >
-        <TabsList>
+        <TabsList className="w-full sm:w-fit">
           <TabsTrigger value="all">{t('notifications.showAll')}</TabsTrigger>
           <TabsTrigger value="unread">{t('notifications.unreadOnly')}</TabsTrigger>
         </TabsList>

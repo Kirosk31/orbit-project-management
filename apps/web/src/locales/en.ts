@@ -52,7 +52,7 @@ export const en = {
     title: 'Plan. Track. Ship.',
     titleAccent: 'Work that stays in orbit.',
     subtitle:
-      'Orbit is the project management platform that keeps every task, deadline and conversation in sync — fast, focused, and beautiful.',
+      'Boards, tasks, time and analytics in one calm place, built for teams in Latin America that work in Spanish and Portuguese.',
     ctaPrimary: 'Start for free',
     ctaSecondary: 'See it in action',
     statsProjects: 'Interface languages',
@@ -195,6 +195,15 @@ export const en = {
     q5: 'Which languages are available?',
     a5: 'The complete interface is available in English, Spanish, French and Brazilian Portuguese.',
   },
+  proof: {
+    heading: 'Serious about the work, and about who sees it',
+    latamTitle: "Native in your team's language",
+    latamBody:
+      'Spanish, Brazilian Portuguese, English and French are first-class, saved per person, with dates and numbers in each locale.',
+    securityTitle: 'Every workspace kept apart',
+    securityBody:
+      'The API checks organization and project membership on every request, with five roles, revocable sessions and an audit trail.',
+  },
   cta: {
     title: 'Ready to put your work in orbit?',
     subtitle: 'Create a workspace and explore the complete workflow in your own deployment.',
@@ -329,6 +338,12 @@ export const en = {
     invalidAvatar: 'Avatar must be a JPEG, PNG or WebP image',
     searchOrJump: 'Search or jump to…',
     accountMenu: 'Account menu',
+    workspace: 'Workspace',
+    switchWorkspace: 'Switch workspace',
+    manageWorkspaces: 'Manage workspaces',
+    recentProjects: 'In this workspace',
+    breadcrumb: 'You are here',
+    personalWorkspace: 'Personal',
   },
   org: {
     title: 'Organizations',
@@ -345,7 +360,8 @@ export const en = {
     empty: 'No organizations yet',
     emptyHint: 'Create your first workspace to start collaborating.',
     members: 'Members',
-    memberCount: '{{count}} members',
+    memberCount_one: '{{count}} member',
+    memberCount_other: '{{count}} members',
     invite: 'Invite member',
     inviteDescription: 'Invite someone by email. You will receive a token to share with them.',
     inviteEmail: 'Email address',
@@ -403,7 +419,8 @@ export const en = {
     created: 'Project created',
     updated: 'Project updated',
     members: 'Members',
-    memberCount: '{{count}} members',
+    memberCount_one: '{{count}} member',
+    memberCount_other: '{{count}} members',
     addMember: 'Add member',
     selectMember: 'Select a member',
     memberAdded: 'Member added to project',
@@ -639,6 +656,11 @@ export const en = {
     status: 'Status',
     editTitle: 'Edit title',
     dangerZone: 'Task actions',
+    chooseFile: 'Choose file',
+    noFileSelected: 'No file selected',
+    pickDate: 'Pick a date',
+    clearDate: 'Clear due date',
+    noDueDate: 'No due date',
   },
   notifications: {
     openMenu: 'Open notifications',
@@ -750,6 +772,8 @@ export const en = {
     projectProgressLabel: '{{project}} is {{progress}}% complete',
     completedOfTotal: '{{completed}} of {{total}} completed',
     overdueCount: '{{count}} overdue',
+    summarySentence:
+      '{{total}} tasks in play, {{open}} still open. {{completed}} completed in the last {{days}} days ({{rate}}% overall), {{overdue}} overdue, {{hours}} h tracked.',
   },
   comments: {
     title: 'Comments',

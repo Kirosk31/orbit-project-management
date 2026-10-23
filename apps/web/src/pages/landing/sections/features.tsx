@@ -17,30 +17,30 @@ export function FeaturesSection(): ReactNode {
 
   return (
     <section id="features" className="scroll-mt-20 py-20 sm:py-28">
-      <div className="mx-auto grid w-full max-w-7xl gap-12 px-4 sm:px-6 lg:grid-cols-[1fr_1.4fr] lg:gap-20 lg:px-8">
+      <div className="mx-auto grid w-full max-w-7xl gap-12 px-4 sm:px-6 lg:grid-cols-[1fr_1.5fr] lg:gap-20 lg:px-8">
         <div className="lg:sticky lg:top-28 lg:self-start">
           <h2
             className="text-3xl font-semibold tracking-[-0.02em] text-balance sm:text-4xl"
-            style={{ fontStretch: '110%' }}
+            style={{ fontStretch: '112%' }}
           >
             {t('features.heading')}
           </h2>
-          <p className="mt-4 max-w-md text-lg text-pretty text-muted-foreground">
-            {t('features.subtitle')}
-          </p>
+          <p className="mt-4 max-w-md text-lg text-muted-foreground">{t('features.subtitle')}</p>
         </div>
 
-        <ul className="grid gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-2">
+        <ol className="grid gap-x-12 sm:grid-cols-2">
           {FEATURES.map((feature, index) => (
-            <li key={feature.key} className="bg-card p-6">
-              <TileGlyph state={feature.state} size={22} turn={[0, 90, 180, 270][index % 4] ?? 0} />
-              <h3 className="mt-5 font-semibold">{t(`features.${feature.key}.title`)}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                {t(`features.${feature.key}.description`)}
-              </p>
+            <li key={feature.key} className="flex gap-4 border-t py-7">
+              <TileGlyph state={feature.state} size={28} turn={[0, 90, 180, 270][index % 4] ?? 0} />
+              <div className="min-w-0">
+                <h3 className="font-semibold">{t(`features.${feature.key}.title`)}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                  {t(`features.${feature.key}.description`)}
+                </p>
+              </div>
             </li>
           ))}
-        </ul>
+        </ol>
       </div>
     </section>
   )

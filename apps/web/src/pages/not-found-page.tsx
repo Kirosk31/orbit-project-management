@@ -36,12 +36,11 @@ export function NotFoundPage(): ReactNode {
           )}
         </div>
         <div>
-          <p className="text-sm font-semibold text-muted-foreground tabular-nums">404</p>
-          <h1 className="mt-1 text-[1.75rem] font-semibold tracking-[-0.015em]">
+          <h1 className="text-[1.75rem] font-semibold tracking-[-0.015em]">
             {t('common.notFoundTitle')}
           </h1>
           <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-            {t('common.notFoundDescription')}
+            {t('common.notFoundDescription')} <span className="tabular-nums">(404)</span>
           </p>
         </div>
         <Button asChild>

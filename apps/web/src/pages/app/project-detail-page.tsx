@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router'
+import { useBreadcrumbs } from '@/features/app/breadcrumbs'
 import { useForm } from 'react-hook-form'
 import type { ReactNode } from 'react'
 import { useState } from 'react'
@@ -22,6 +23,7 @@ import { toast } from 'sonner'
 import type { z } from 'zod'
 
 import { EmptyState, PageContainer, PageHeader, SectionHeader } from '@/components/shared/page'
+import { ProjectKeyBadge } from '@/components/shared/project-key-badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -61,7 +63,7 @@ import {
 } from '@/features/projects/project-api'
 import { SecureAvatarImage } from '@/features/users/secure-avatar-image'
 import { createBoardRequest, listBoardsRequest } from '@/features/boards/board-api'
-import { formatRelativeTime, getContrastTextColor, initialsOf } from '@/lib/utils'
+import { formatRelativeTime, initialsOf } from '@/lib/utils'
 
 const ACTIVITY_LABELS = {
   'project.created': 'projects.activityCreated',
@@ -86,6 +88,11 @@ export function ProjectDetailPage(): ReactNode {
     queryKey: ['project', id],
     queryFn: () => getProjectRequest(id),
   })
+  useBreadcrumbs(
+    projectQuery.data
+      ? [{ label: t('projects.title'), to: '/app/projects' }, { label: projectQuery.data.name }]
+      : [],
+  )
 
   const project = projectQuery.data
 
@@ -249,13 +256,7 @@ export function ProjectDetailPage(): ReactNode {
         }
         title={
           <span className="flex items-center gap-3">
-            <span
-              className="flex size-9 shrink-0 items-center justify-center rounded-md text-[0.6875rem] font-bold tracking-wide"
-              style={{ backgroundColor: project.color, color: getContrastTextColor(project.color) }}
-              aria-hidden="true"
-            >
-              {project.key.slice(0, 4)}
-            </span>
+            <ProjectKeyBadge projectKey={project.key} color={project.color} />
             {project.name}
           </span>
         }
