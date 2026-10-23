@@ -16,6 +16,8 @@ import { NotificationRow } from '@/features/notification-row'
 import { listNotificationsRequest, markReadRequest } from '@/features/notifications-api'
 import { useActiveWorkspace } from '@/features/workspace/use-active-workspace'
 import { listProjectsRequest } from '@/features/projects/project-api'
+import { OnboardingSteps } from '@/features/onboarding/onboarding-steps'
+import { isOnboarding, type OnboardingProgress } from '@/features/onboarding/progress'
 import { listMyTasksRequest } from '@/features/tasks/task-api'
 import { useProjectTasks } from '@/features/tasks/use-project-tasks'
 import { DueDate, PriorityMark } from '@/features/tasks/task-meta'
@@ -104,6 +106,19 @@ export function DashboardPage(): ReactNode {
     staleTime: 30_000,
   })
 
+  const anyTask = [...projectTasks.byProject.values()].some((tasks) => tasks.length > 0)
+  const onboarding: OnboardingProgress = {
+    hasWorkspace: organizations.length > 0,
+    hasProject: (projectsQuery.data ?? []).length > 0,
+    hasTask: anyTask || myOpenTasks.length > 0,
+    firstProjectPath: projects[0] ? `/app/projects/${projects[0].id}` : null,
+  }
+  const dataSettled =
+    !organizationsLoading &&
+    (organizations.length === 0 ||
+      (!projectsQuery.isLoading && !projectTasks.isLoading && !myTasksQuery.isLoading))
+  const showOnboarding = dataSettled && isOnboarding(onboarding)
+
   const firstName = user?.fullName.split(' ')[0] ?? ''
   const todayLabel = new Intl.DateTimeFormat(i18n.resolvedLanguage ?? i18n.language, {
     weekday: 'long',
@@ -123,15 +138,8 @@ export function DashboardPage(): ReactNode {
         }
       />
 
-      {!organizationsLoading && organizations.length === 0 ? (
-        <EmptyState
-          title={t('dashboard.noOrganizations')}
-          action={
-            <Button onClick={() => navigate('/app/organizations')}>
-              {t('dashboard.createWorkspace')}
-            </Button>
-          }
-        />
+      {showOnboarding ? (
+        <OnboardingSteps progress={onboarding} />
       ) : (
         <div className="grid gap-x-10 gap-y-10 lg:grid-cols-[minmax(0,1fr)_21rem]">
           <section aria-labelledby="your-work-heading" className="min-w-0">
@@ -293,7 +301,7 @@ export function DashboardPage(): ReactNode {
         </div>
       )}
 
-      {activeOrg ? (
+      {activeOrg && !showOnboarding ? (
         <div className="mt-14 border-t pt-10">
           <AnalyticsDashboard
             data={analyticsQuery.data}
