@@ -67,17 +67,17 @@ type PersonKey = (typeof PEOPLE)[number]['key']
 
 const STATUSES = [
   { name: 'Pendiente', color: '#5b6b80', isDefault: true },
-  { name: 'Por hacer', color: '#2f86b8' },
+  { name: 'Por hacer', color: '#24719f' },
   { name: 'En curso', color: '#224bb2' },
   { name: 'En revisión', color: '#7a4b9c' },
-  { name: 'Hecho', color: '#2f8a5b', isClosed: true },
+  { name: 'Hecho', color: '#1f7a52', isClosed: true },
 ] as const
 type StatusName = (typeof STATUSES)[number]['name']
 
 const LABELS = [
   { name: 'Diseño', color: '#7a4b9c' },
   { name: 'Frontend', color: '#224bb2' },
-  { name: 'Backend', color: '#2f86b8' },
+  { name: 'Backend', color: '#24719f' },
   { name: 'Cliente', color: '#c98a1b' },
   { name: 'Bug', color: '#b4532a' },
 ] as const
@@ -159,7 +159,7 @@ const PROJECTS: ProjectSpec[] = [
     key: 'B2B',
     name: 'Portal de clientes B2B',
     description: 'Autogestión de pedidos y facturas para distribuidores.',
-    color: '#2f8a5b',
+    color: '#1f7a52',
     board: 'Sprint 6',
     boardDescription: 'Pedidos recurrentes y facturas',
     people: ['lucia', 'mateo', 'diego', 'camila'],

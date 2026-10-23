@@ -5,9 +5,9 @@
  */
 export const PALETTE_COLORS = [
   '#224bb2',
-  '#2f86b8',
+  '#24719f',
   '#c98a1b',
-  '#2f8a5b',
+  '#1f7a52',
   '#b4532a',
   '#7a4b9c',
   '#5b6b80',
