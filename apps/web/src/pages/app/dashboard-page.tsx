@@ -16,6 +16,7 @@ import { NotificationRow } from '@/features/notification-row'
 import { listNotificationsRequest, markReadRequest } from '@/features/notifications-api'
 import { useActiveWorkspace } from '@/features/workspace/use-active-workspace'
 import { listProjectsRequest } from '@/features/projects/project-api'
+import { listMyTasksRequest } from '@/features/tasks/task-api'
 import { useProjectTasks } from '@/features/tasks/use-project-tasks'
 import { DueDate, PriorityMark } from '@/features/tasks/task-meta'
 import { dueStateOf } from '@/lib/due'
@@ -67,12 +68,15 @@ export function DashboardPage(): ReactNode {
     .slice(0, MAX_PROJECTS)
 
   const projectTasks = useProjectTasks(projects.map((project) => project.id))
-  const tasksLoading = projectsQuery.isLoading || projectTasks.isLoading
-  const projectById = new Map(projects.map((project) => [project.id, project]))
-  const allTasks = [...projectTasks.byProject.values()].flat()
-  const myOpenTasks = allTasks.filter(
-    (task) => !task.isCompleted && task.assignees.some((assignee) => assignee.userId === user?.id),
-  )
+  const myTasksQuery = useQuery({
+    queryKey: ['my-tasks', activeOrg?.slug],
+    queryFn: () => listMyTasksRequest(activeOrg!.slug),
+    enabled: Boolean(activeOrg),
+    staleTime: 30_000,
+  })
+  const tasksLoading = projectsQuery.isLoading || myTasksQuery.isLoading
+  const projectById = new Map((projectsQuery.data ?? []).map((project) => [project.id, project]))
+  const myOpenTasks = myTasksQuery.data?.rows ?? []
   const groups = GROUP_ORDER.map((key) => ({
     key,
     tasks: myOpenTasks

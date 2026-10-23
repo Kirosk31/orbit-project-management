@@ -103,6 +103,7 @@ function createFakeRepository(overrides: Partial<TasksRepository> = {}): TasksRe
     updateTask: vi.fn(async (_id, data) => makeTask(data as Partial<Task>)),
     softDeleteTask: vi.fn(async () => undefined),
     listTasks: vi.fn(async () => ({ rows: [], total: 0 })),
+    listAssignedOpenTasks: vi.fn(async () => ({ rows: [], total: 0 })),
     countTasksInColumn: vi.fn(async () => 0),
     countTasksInProject: vi.fn(async () => 0),
     moveTask: vi.fn(async () => makeTask()),

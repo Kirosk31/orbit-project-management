@@ -185,6 +185,8 @@ export function TaskDetailPage(): ReactNode {
     queryClient.invalidateQueries({ queryKey: ['task', taskId] })
     queryClient.invalidateQueries({ queryKey: ['task-activity', taskId] })
     queryClient.invalidateQueries({ queryKey: ['board-tasks'] })
+    queryClient.invalidateQueries({ queryKey: ['my-tasks'] })
+    queryClient.invalidateQueries({ queryKey: ['project-tasks'] })
     queryClient.invalidateQueries({ queryKey: ['org-labels'] })
   }
 

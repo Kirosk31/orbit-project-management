@@ -51,6 +51,8 @@ export function useProjectRealtime(projectId: string): string[] {
     const onTaskEvent = (event: ProjectRealtimeEvent): void => {
       if (event.projectId !== projectId) return
       void queryClient.invalidateQueries({ queryKey: ['board-tasks'] })
+      void queryClient.invalidateQueries({ queryKey: ['my-tasks'] })
+      void queryClient.invalidateQueries({ queryKey: ['project-tasks'] })
       if (event.taskId) {
         void queryClient.invalidateQueries({ queryKey: ['task', event.taskId] })
         void queryClient.invalidateQueries({ queryKey: ['task-subtasks', event.taskId] })

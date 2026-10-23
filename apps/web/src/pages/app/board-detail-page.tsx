@@ -146,6 +146,8 @@ export function BoardDetailPage(): ReactNode {
     queryClient.invalidateQueries({ queryKey: ['board', boardId] })
     queryClient.invalidateQueries({ queryKey: ['board-columns', boardId] })
     queryClient.invalidateQueries({ queryKey: ['board-tasks', boardId] })
+    queryClient.invalidateQueries({ queryKey: ['my-tasks'] })
+    queryClient.invalidateQueries({ queryKey: ['project-tasks'] })
     queryClient.invalidateQueries({ queryKey: ['boards'] })
   }
 

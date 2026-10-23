@@ -204,6 +204,15 @@ export class TasksService {
     return { rows: result.rows.map((row) => this.toTaskDto(row)), total: result.total }
   }
 
+  async listMyTasks(
+    orgId: string,
+    userId: string,
+    limit: number,
+  ): Promise<{ rows: TaskDto[]; total: number }> {
+    const result = await this.deps.repository.listAssignedOpenTasks(orgId, userId, limit)
+    return { rows: result.rows.map((row) => this.toTaskDto(row)), total: result.total }
+  }
+
   async listBoardTasks(
     boardId: string,
     query: TaskQuery,

@@ -294,6 +294,67 @@ describeDb('tasks API', () => {
     taskId = res.body.data.id as string
   })
 
+  it('lists only my open tasks, soonest deadline first, scoped to the organization', async () => {
+    const created: string[] = []
+    const make = async (body: Record<string, unknown>): Promise<string> => {
+      const res = await request(app.app)
+        .post(`/api/v1/projects/${projectId}/tasks`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .set(await csrfHeaders())
+        .send({ columnId, assigneeIds: [memberId], ...body })
+      expect(res.status).toBe(201)
+      created.push(res.body.data.id as string)
+      return res.body.data.id as string
+    }
+    const later = await make({ title: 'Due later', dueDate: '2030-06-01T00:00:00.000Z' })
+    const sooner = await make({ title: 'Due sooner', dueDate: '2030-01-01T00:00:00.000Z' })
+    const finished = await make({ title: 'Already done' })
+    const finish = await request(app.app)
+      .patch(`/api/v1/tasks/${finished}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .set(await csrfHeaders())
+      .send({ isCompleted: true })
+    expect(finish.status).toBe(200)
+
+    const mine = await request(app.app)
+      .get(`/api/v1/organizations/${orgSlug}/my-tasks`)
+      .set('Authorization', `Bearer ${memberToken}`)
+    expect(mine.status).toBe(200)
+    const titles = (mine.body.data.rows as Array<{ title: string }>).map((task) => task.title)
+    expect(titles).toEqual(['Due sooner', 'Due later', 'Fix login bug'])
+    expect(mine.body.data.total).toBe(3)
+
+    const limited = await request(app.app)
+      .get(`/api/v1/organizations/${orgSlug}/my-tasks?limit=1`)
+      .set('Authorization', `Bearer ${memberToken}`)
+    expect(limited.body.data.rows).toHaveLength(1)
+    expect(limited.body.data.total).toBe(3)
+
+    const ownerList = await request(app.app)
+      .get(`/api/v1/organizations/${orgSlug}/my-tasks`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+    expect(ownerList.body.data.rows).toEqual([])
+
+    const outsider = await request(app.app)
+      .get(`/api/v1/organizations/${orgSlug}/my-tasks`)
+      .set('Authorization', `Bearer ${outsiderToken}`)
+    expect([403, 404]).toContain(outsider.status)
+
+    const invalid = await request(app.app)
+      .get(`/api/v1/organizations/${orgSlug}/my-tasks?limit=0`)
+      .set('Authorization', `Bearer ${memberToken}`)
+    expect(invalid.status).toBe(400)
+
+    for (const id of [later, sooner, finished]) {
+      const removed = await request(app.app)
+        .delete(`/api/v1/tasks/${id}`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .set(await csrfHeaders())
+      expect(removed.status).toBe(200)
+    }
+    expect(created).toHaveLength(3)
+  })
+
   it('isolates task lists between boards in the same project', async () => {
     const secondBoard = await request(app.app)
       .post(`/api/v1/projects/${projectId}/boards`)

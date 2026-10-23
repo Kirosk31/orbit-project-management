@@ -116,6 +116,7 @@ export interface TasksRepository {
     metadata?: Prisma.InputJsonValue
   }): Promise<void>
   findUserName(userId: string): Promise<string | null>
+  listAssignedOpenTasks(orgId: string, userId: string, take: number): Promise<TaskListResult>
 }
 
 const TASK_INCLUDE = {
@@ -264,6 +265,33 @@ export class PrismaTasksRepository implements TasksRepository {
         include: TASK_INCLUDE,
         orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
         skip,
+        take,
+      }),
+      this.prisma.task.count({ where }),
+    ])
+    return { rows: rows.map(toTaskRow), total }
+  }
+
+  async listAssignedOpenTasks(
+    orgId: string,
+    userId: string,
+    take: number,
+  ): Promise<TaskListResult> {
+    const where: Prisma.TaskWhereInput = {
+      orgId,
+      deletedAt: null,
+      parentId: null,
+      isArchived: false,
+      isCompleted: false,
+      project: { deletedAt: null, isArchived: false },
+      assignees: { some: { userId } },
+    }
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.task.findMany({
+        where,
+        include: TASK_INCLUDE,
+        // Soonest deadline first; undated work sits after everything with a date.
+        orderBy: [{ dueDate: { sort: 'asc', nulls: 'last' } }, { createdAt: 'asc' }],
         take,
       }),
       this.prisma.task.count({ where }),
