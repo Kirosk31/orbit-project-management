@@ -13,7 +13,32 @@ This repository is a production-oriented portfolio project rather than a static 
 - Dashboards for task totals, completion rate, overdue work, tracked time, project progress, workload, velocity, activity, and burndown
 - In-app notifications and authorized Socket.IO updates for tasks, boards, comments, notifications, and presence
 - English, Spanish, French, and Brazilian Portuguese with persisted account preferences
-- Responsive light and dark themes, keyboard-accessible navigation, command palette, reduced-motion support, loading states, and error boundaries
+- Responsive light and dark themes, white-label brand color preview, keyboard shortcuts, keyboard-accessible navigation, command palette, reduced-motion support, loading states, and error boundaries
+
+## Design
+
+Orbit's interface follows one idea, **calm focus**: quiet surfaces, generous air, and color only when it carries meaning. Its signature is the _azulejo tile_, after the tile panels Athos Bulcão made for Brasília. Every task is one tile; finishing it glazes the tile in the brand color, and the sprint becomes a small wall of progress that reads at a glance.
+
+|                          Before                          |                   After                    |
+| :------------------------------------------------------: | :----------------------------------------: |
+| ![Previous dashboard](docs/screenshots/before-today.png) | ![Today](docs/screenshots/today-light.png) |
+|   ![Previous board](docs/screenshots/before-board.png)   | ![Board](docs/screenshots/board-light.png) |
+
+| Task, light                                     | Today, Spanish                        | Today, mobile                                |
+| ----------------------------------------------- | ------------------------------------- | -------------------------------------------- |
+| ![Task detail](docs/screenshots/task-light.png) | ![Hoy](docs/screenshots/today-es.png) | ![Mobile](docs/screenshots/today-mobile.png) |
+
+Decisions worth knowing:
+
+- **Today first.** The home screen answers "what needs me now": overdue and due-today work is grouped on ochre, served by one `GET /organizations/:slug/my-tasks` call instead of a request per project. New accounts get a three-step first-week guide instead of an empty dashboard.
+- **One hue retunes the product.** Primary, ring, rail and logo derive from `--brand-hue` at fixed lightness, so an agency can resell Orbit in its own color without breaking contrast. Try it in **Profile → Brand color**; axe reports no serious issues across six hues in both themes.
+- **Never color alone.** Priority, status and overdue work always carry an icon or text next to the color. Reduced motion collapses every animation, including the glaze.
+- **Keyboard.** `Ctrl/Cmd K` or `/` opens search, `N` adds a task to the first column of a board.
+- **One source for two apps.** The Vite app and the Next.js [public site](docs/public-site.md) share tokens, locale catalogs and the logo/tile components through workspace packages.
+
+![The public site in Costa Rican Spanish](docs/screenshots/site-es-cr.png)
+
+The full system (palette in OKLCH, type, spacing, motion, components and named rules) lives in [`apps/web/DESIGN.md`](apps/web/DESIGN.md); product intent and audience are in [`apps/web/PRODUCT.md`](apps/web/PRODUCT.md).
 
 ## Security model
 
