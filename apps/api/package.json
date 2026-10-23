@@ -20,6 +20,7 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:demo": "tsx prisma/demo-seed.ts",
     "predev": "npm run build -w @orbit/shared",
     "prebuild": "npm run build -w @orbit/shared",
     "pretest": "npm run build -w @orbit/shared",
