@@ -212,7 +212,7 @@ export function OrganizationsPage(): ReactNode {
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium">{org.name}</span>
                   <span className="block truncate text-sm text-muted-foreground">
-                    {org.description || org.slug}
+                    {org.isPersonal ? t('app.personalWorkspace') : org.description || org.slug}
                   </span>
                 </span>
                 <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">

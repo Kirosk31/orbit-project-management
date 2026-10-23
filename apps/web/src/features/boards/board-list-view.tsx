@@ -77,7 +77,7 @@ export function BoardListView({ columns, tasks, onOpenTask }: BoardListViewProps
                       {task.isCompleted ? (
                         <CircleCheckIcon className="size-4 text-success" aria-hidden="true" />
                       ) : (
-                        <PriorityMark priority={task.priority} />
+                        <PriorityMark priority={task.priority} placeholder />
                       )}
                     </span>
                     <span

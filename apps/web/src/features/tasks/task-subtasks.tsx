@@ -82,9 +82,9 @@ export function TaskSubtasks({ taskId }: { taskId: string }): ReactNode {
             <ListChecksIcon className="size-4" />
             {t('tasks.subtasks')}
           </CardTitle>
-          <Badge variant="secondary">{progressLabel}</Badge>
+          {subtasks.length > 0 && <Badge variant="secondary">{progressLabel}</Badge>}
         </div>
-        <Progress value={progress} aria-label={progressLabel} />
+        {subtasks.length > 0 && <Progress value={progress} aria-label={progressLabel} />}
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {query.isPending ? (

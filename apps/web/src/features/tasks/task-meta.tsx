@@ -31,16 +31,19 @@ const PRIORITY_COLOR: Record<TaskPriority, string> = {
 export function PriorityMark({
   priority,
   showLabel = false,
+  placeholder = false,
   className,
 }: {
   priority: TaskPriority
   showLabel?: boolean
+  /** Draw empty bars for "no priority" so a column of marks stays aligned. */
+  placeholder?: boolean
   className?: string
 }): ReactNode {
   const { t } = useTranslation()
   const level = PRIORITY_LEVEL[priority]
   const label = t(`tasks.priority${priority}`)
-  if (level === 0 && !showLabel) return null
+  if (level === 0 && !showLabel && !placeholder) return null
 
   return (
     <span

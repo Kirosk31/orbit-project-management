@@ -81,9 +81,13 @@ export function NotificationsPage(): ReactNode {
         }}
         className="mb-4"
       >
-        <TabsList className="w-full sm:w-fit">
-          <TabsTrigger value="all">{t('notifications.showAll')}</TabsTrigger>
-          <TabsTrigger value="unread">{t('notifications.unreadOnly')}</TabsTrigger>
+        <TabsList className="w-full max-w-full min-w-0 sm:w-fit">
+          <TabsTrigger value="all" className="min-w-0">
+            <span className="truncate">{t('notifications.showAll')}</span>
+          </TabsTrigger>
+          <TabsTrigger value="unread" className="min-w-0">
+            <span className="truncate">{t('notifications.unreadOnly')}</span>
+          </TabsTrigger>
         </TabsList>
         <TabsContent value={unreadOnly ? 'unread' : 'all'}>
           {notificationsQuery.isLoading ? (

@@ -311,7 +311,7 @@ function WorkRow({ task, project }: { task: TaskDto; project: ProjectDto | undef
         className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 transition-colors duration-150 hover:bg-accent/60"
       >
         <span className="flex w-4 justify-center">
-          <PriorityMark priority={task.priority} />
+          <PriorityMark priority={task.priority} placeholder />
         </span>
         <span className="min-w-0 flex-1 basis-56 truncate text-sm font-medium">{task.title}</span>
         {project && (
