@@ -79,22 +79,32 @@ export class TasksService {
       metadata: { title: dto.title },
     })
 
-    if (dto.assigneeIds.length > 0) {
-      await Promise.all(
-        dto.assigneeIds.map((userId) =>
-          this.deps.notifications.taskAssigned({
-            orgId,
-            taskId: task.id,
-            taskTitle: dto.title,
-            userId,
-          }),
-        ),
-      )
-    }
+    await this.notifyAssigned(orgId, task.id, dto.title, dto.assigneeIds, actorId)
 
     const created = await this.getTask(task.id)
     this.emitTaskEvent('task.created', created, actorId)
     return created
+  }
+
+  /**
+   * Notifies assignees with the actor's real name. Assigning yourself is not
+   * news, so the actor never receives their own assignment notification.
+   */
+  private async notifyAssigned(
+    orgId: string,
+    taskId: string,
+    taskTitle: string,
+    userIds: readonly string[],
+    actorId: string,
+  ): Promise<void> {
+    const recipients = userIds.filter((userId) => userId !== actorId)
+    if (recipients.length === 0) return
+    const actorName = (await this.deps.repository.findUserName(actorId)) ?? undefined
+    await Promise.all(
+      recipients.map((userId) =>
+        this.deps.notifications.taskAssigned({ orgId, taskId, taskTitle, actorName, userId }),
+      ),
+    )
   }
 
   async getTask(taskId: string): Promise<TaskDto> {
@@ -158,18 +168,7 @@ export class TasksService {
       }),
     ])
 
-    if (dto.assigneeIds.length > 0) {
-      await Promise.all(
-        dto.assigneeIds.map((userId) =>
-          this.deps.notifications.taskAssigned({
-            orgId: parent.orgId,
-            taskId: subtask.id,
-            taskTitle: subtask.title,
-            userId,
-          }),
-        ),
-      )
-    }
+    await this.notifyAssigned(parent.orgId, subtask.id, subtask.title, dto.assigneeIds, actorId)
 
     const created = await this.getTask(subtask.id)
     this.emitTaskEvent('task.created', created, actorId, 'subtask')
@@ -337,6 +336,7 @@ export class TasksService {
         .filter((id, index, ids) => id !== actorId && ids.indexOf(id) === index)
 
       if (recipients.length > 0) {
+        const actorName = (await this.deps.repository.findUserName(actorId)) ?? undefined
         await Promise.all(
           recipients.map((userId) =>
             this.deps.notifications.taskStatusChanged({
@@ -344,6 +344,7 @@ export class TasksService {
               taskId: task.id,
               taskTitle: task.title,
               statusName,
+              actorName,
               userId,
             }),
           ),
@@ -369,12 +370,7 @@ export class TasksService {
       metadata: { userId },
     })
 
-    await this.deps.notifications.taskAssigned({
-      orgId: task.orgId,
-      taskId: task.id,
-      taskTitle: task.title,
-      userId,
-    })
+    await this.notifyAssigned(task.orgId, task.id, task.title, [userId], actorId)
 
     const updated = await this.getTask(task.id)
     this.emitTaskEvent('task.updated', updated, actorId, 'assignee-added')

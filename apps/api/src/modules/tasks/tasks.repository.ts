@@ -115,6 +115,7 @@ export interface TasksRepository {
     newValue?: string | null
     metadata?: Prisma.InputJsonValue
   }): Promise<void>
+  findUserName(userId: string): Promise<string | null>
 }
 
 const TASK_INCLUDE = {
@@ -406,5 +407,13 @@ export class PrismaTasksRepository implements TasksRepository {
     metadata?: Prisma.InputJsonValue
   }): Promise<void> {
     await this.prisma.taskActivity.create({ data })
+  }
+
+  async findUserName(userId: string): Promise<string | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { fullName: true },
+    })
+    return user?.fullName ?? null
   }
 }
