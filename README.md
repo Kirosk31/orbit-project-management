@@ -40,7 +40,7 @@ See [SECURITY.md](SECURITY.md), [the security audit](docs/SECURITY_AUDIT.md), an
 | Data     | PostgreSQL 16, Prisma 7, Redis 7                                                                                                         |
 | Security | bcrypt, JWT, `HttpOnly` cookies, CSRF, Helmet, CORS allowlist, Redis rate limits                                                         |
 | Testing  | Vitest, Supertest, React Testing Library, Playwright, Axe                                                                                |
-| Delivery | Docker, Docker Compose, unprivileged NGINX, GitHub Actions, Dependabot, Gitleaks                                                         |
+| Delivery | Docker, Docker Compose, unprivileged NGINX, GitHub Actions and Azure Pipelines ([setup](docs/azure-devops.md)), Dependabot, Gitleaks     |
 
 ## Repository layout
 

@@ -1,0 +1,36 @@
+# Installs Node, restores the npm cache and prepares the monorepo for tests:
+# Prisma client, the shared package build, migrations and role seed.
+parameters:
+  - name: prepareDatabase
+    type: boolean
+    default: true
+
+steps:
+  - task: NodeTool@0
+    displayName: Use Node.js $(NODE_VERSION)
+    inputs:
+      versionSpec: $(NODE_VERSION)
+
+  - task: Cache@2
+    displayName: Restore npm cache
+    inputs:
+      key: 'npm | "$(Agent.OS)" | package-lock.json'
+      restoreKeys: |
+        npm | "$(Agent.OS)"
+      path: $(npm_config_cache)
+
+  - script: npm ci
+    displayName: Install dependencies
+
+  - script: npm run prisma:generate --workspace=@orbit/api
+    displayName: Generate Prisma client
+
+  - script: npm run build --workspace=@orbit/shared
+    displayName: Build shared package
+
+  - ${{ if eq(parameters.prepareDatabase, true) }}:
+      - script: npm run prisma:deploy --workspace=@orbit/api
+        displayName: Apply test database migrations
+
+      - script: npm exec --workspace=@orbit/api prisma db seed
+        displayName: Seed test database roles
