@@ -55,7 +55,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import {
   archiveBoardRequest,
@@ -333,21 +332,34 @@ export function BoardDetailPage(): ReactNode {
         description={board.description || t('boards.subtitle')}
         actions={
           <>
-            <Tabs
-              value={viewMode}
-              onValueChange={(value) => setViewMode(value as 'kanban' | 'list')}
+            <div
+              role="group"
+              aria-label={t('boards.viewMode')}
+              className="inline-flex h-9 items-center gap-1 rounded-md border bg-muted p-[3px]"
             >
-              <TabsList aria-label={t('boards.viewMode')}>
-                <TabsTrigger value="kanban">
-                  <Columns3Icon />
-                  {t('boards.viewKanban')}
-                </TabsTrigger>
-                <TabsTrigger value="list">
-                  <ListIcon />
-                  {t('boards.viewList')}
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+              {(
+                [
+                  ['kanban', Columns3Icon, t('boards.viewKanban')],
+                  ['list', ListIcon, t('boards.viewList')],
+                ] as const
+              ).map(([mode, Icon, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  aria-pressed={viewMode === mode}
+                  onClick={() => setViewMode(mode)}
+                  className={cn(
+                    'inline-flex h-full items-center gap-1.5 rounded-sm border border-transparent px-2.5 text-sm font-medium transition-colors duration-150 [&_svg]:size-4',
+                    viewMode === mode
+                      ? 'border-border bg-card text-foreground'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <Icon aria-hidden="true" />
+                  {label}
+                </button>
+              ))}
+            </div>
             <Button
               variant="outline"
               onClick={() => {
@@ -356,7 +368,7 @@ export function BoardDetailPage(): ReactNode {
               }}
             >
               <PencilIcon />
-              {t('boards.edit')}
+              <span className="sr-only sm:not-sr-only">{t('boards.edit')}</span>
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

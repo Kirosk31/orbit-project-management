@@ -63,7 +63,7 @@ export function NotificationsDropdown(): React.ReactElement {
         >
           <BellIcon />
           {unreadCount > 0 ? (
-            <span className="absolute top-1 right-0.5 min-w-4 rounded-sm bg-ochre px-1 text-[0.625rem] leading-4 font-semibold text-warning-foreground tabular-nums">
+            <span className="absolute top-1 right-0.5 min-w-4 rounded-sm bg-ochre px-1 text-[0.6875rem] leading-4 font-semibold text-warning-foreground tabular-nums">
               {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           ) : null}

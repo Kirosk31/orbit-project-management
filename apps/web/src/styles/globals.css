@@ -276,6 +276,10 @@
     text-wrap: balance;
   }
 
+  p {
+    text-wrap: pretty;
+  }
+
   :where(input, textarea, select) {
     font-variant-numeric: tabular-nums;
   }

@@ -52,8 +52,8 @@ export function TilePanel({
       ))}
       {overflow > 0 && (
         <span
-          className="flex items-center justify-center rounded-[2px] bg-muted text-[0.5625rem] font-semibold text-muted-foreground tabular-nums"
-          style={{ width: size, height: size }}
+          className="flex items-center justify-center px-0.5 text-[0.6875rem] leading-none font-semibold text-muted-foreground tabular-nums"
+          style={{ minWidth: size, height: size }}
           aria-hidden="true"
         >
           +{overflow > 99 ? 99 : overflow}

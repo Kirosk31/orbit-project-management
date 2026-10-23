@@ -145,12 +145,16 @@ export function AssigneeStack({
             avatarKey={assignee.avatarKey}
             alt={assignee.fullName}
           />
-          <AvatarFallback className="text-[0.5rem]">{initialsOf(assignee.fullName)}</AvatarFallback>
+          <AvatarFallback className="text-[0.6875rem] tracking-tighter">
+            {initialsOf(assignee.fullName)}
+          </AvatarFallback>
         </Avatar>
       ))}
       {assignees.length > max && (
         <Avatar className="size-5 ring-2 ring-card">
-          <AvatarFallback className="text-[0.5rem]">+{assignees.length - max}</AvatarFallback>
+          <AvatarFallback className="text-[0.6875rem] tracking-tighter">
+            +{assignees.length - max}
+          </AvatarFallback>
         </Avatar>
       )}
     </span>

@@ -33,7 +33,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { listOrganizationsRequest } from '@/features/organizations/org-api'
 import { createProjectRequest, listProjectsRequest } from '@/features/projects/project-api'
@@ -248,63 +248,64 @@ export function ProjectsPage(): ReactNode {
               <TabsTrigger value="favorites">{t('projects.favorites')}</TabsTrigger>
               <TabsTrigger value="archived">{t('projects.archived')}</TabsTrigger>
             </TabsList>
+            <TabsContent value={filter}>
+              {projectsQuery.isPending ? (
+                <Skeleton className="h-48 w-full" />
+              ) : visibleProjects.length > 0 ? (
+                <ul className="divide-y overflow-hidden rounded-lg border bg-card">
+                  {visibleProjects.map((project) => (
+                    <li key={project.id}>
+                      <Link
+                        to={`/app/projects/${project.id}`}
+                        className="flex items-center gap-4 px-4 py-3.5 transition-colors duration-150 hover:bg-accent/60"
+                      >
+                        <span
+                          className="flex size-9 shrink-0 items-center justify-center rounded-md text-[0.6875rem] font-bold tracking-wide"
+                          style={{
+                            backgroundColor: project.color,
+                            color: getContrastTextColor(project.color),
+                          }}
+                          aria-hidden="true"
+                        >
+                          {project.key.slice(0, 4)}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center gap-2">
+                            <span className="truncate font-medium">{project.name}</span>
+                            {project.isFavorite && (
+                              <StarIcon
+                                className="size-3.5 shrink-0 fill-ochre text-ochre"
+                                aria-label={t('projects.favorites')}
+                              />
+                            )}
+                            {project.isArchived && (
+                              <Badge variant="secondary">{t('projects.archived')}</Badge>
+                            )}
+                          </span>
+                          <span className="block truncate text-sm text-muted-foreground">
+                            {project.description || project.key}
+                          </span>
+                        </span>
+                        <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
+                          <UsersIcon className="size-3.5" aria-hidden="true" />
+                          {t('projects.memberCount', { count: project.memberCount })}
+                        </span>
+                        <span className="hidden w-28 text-right text-xs text-muted-foreground tabular-nums md:block">
+                          {formatDate(project.createdAt, i18n.language)}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <EmptyState
+                  title={t('projects.empty')}
+                  description={t('projects.emptyHint')}
+                  action={filter === 'all' ? createDialog : undefined}
+                />
+              )}
+            </TabsContent>
           </Tabs>
-
-          {projectsQuery.isPending ? (
-            <Skeleton className="h-48 w-full" />
-          ) : visibleProjects.length > 0 ? (
-            <ul className="divide-y overflow-hidden rounded-lg border bg-card">
-              {visibleProjects.map((project) => (
-                <li key={project.id}>
-                  <Link
-                    to={`/app/projects/${project.id}`}
-                    className="flex items-center gap-4 px-4 py-3.5 transition-colors duration-150 hover:bg-accent/60"
-                  >
-                    <span
-                      className="flex size-9 shrink-0 items-center justify-center rounded-md text-[0.6875rem] font-bold tracking-wide"
-                      style={{
-                        backgroundColor: project.color,
-                        color: getContrastTextColor(project.color),
-                      }}
-                      aria-hidden="true"
-                    >
-                      {project.key.slice(0, 4)}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-2">
-                        <span className="truncate font-medium">{project.name}</span>
-                        {project.isFavorite && (
-                          <StarIcon
-                            className="size-3.5 shrink-0 fill-ochre text-ochre"
-                            aria-label={t('projects.favorites')}
-                          />
-                        )}
-                        {project.isArchived && (
-                          <Badge variant="secondary">{t('projects.archived')}</Badge>
-                        )}
-                      </span>
-                      <span className="block truncate text-sm text-muted-foreground">
-                        {project.description || project.key}
-                      </span>
-                    </span>
-                    <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
-                      <UsersIcon className="size-3.5" aria-hidden="true" />
-                      {t('projects.memberCount', { count: project.memberCount })}
-                    </span>
-                    <span className="hidden w-28 text-right text-xs text-muted-foreground tabular-nums md:block">
-                      {formatDate(project.createdAt, i18n.language)}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <EmptyState
-              title={t('projects.empty')}
-              description={t('projects.emptyHint')}
-              action={filter === 'all' ? createDialog : undefined}
-            />
-          )}
         </>
       )}
     </PageContainer>

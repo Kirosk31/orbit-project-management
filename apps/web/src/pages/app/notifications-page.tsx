@@ -8,7 +8,7 @@ import type { ReactNode } from 'react'
 import { EmptyState, PageContainer, PageHeader } from '@/components/shared/page'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { NotificationRow } from '@/features/notification-row'
 import {
   listNotificationsRequest,
@@ -85,27 +85,28 @@ export function NotificationsPage(): ReactNode {
           <TabsTrigger value="all">{t('notifications.showAll')}</TabsTrigger>
           <TabsTrigger value="unread">{t('notifications.unreadOnly')}</TabsTrigger>
         </TabsList>
+        <TabsContent value={unreadOnly ? 'unread' : 'all'}>
+          {notificationsQuery.isLoading ? (
+            <Skeleton className="h-64 w-full" />
+          ) : notifications.length === 0 ? (
+            <EmptyState title={t('notifications.empty')} />
+          ) : (
+            <ul className="divide-y overflow-hidden rounded-lg border bg-card">
+              {notifications.map((notification) => (
+                <li key={notification.id}>
+                  <NotificationRow
+                    notification={notification}
+                    onSelect={(selected) => {
+                      if (!selected.isRead) void markReadMutation.mutate(selected.id)
+                      if (selected.linkUrl) navigate(selected.linkUrl)
+                    }}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </TabsContent>
       </Tabs>
-
-      {notificationsQuery.isLoading ? (
-        <Skeleton className="h-64 w-full" />
-      ) : notifications.length === 0 ? (
-        <EmptyState title={t('notifications.empty')} />
-      ) : (
-        <ul className="divide-y overflow-hidden rounded-lg border bg-card">
-          {notifications.map((notification) => (
-            <li key={notification.id}>
-              <NotificationRow
-                notification={notification}
-                onSelect={(selected) => {
-                  if (!selected.isRead) void markReadMutation.mutate(selected.id)
-                  if (selected.linkUrl) navigate(selected.linkUrl)
-                }}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
 
       {(page > 1 || hasNextPage) && (
         <nav

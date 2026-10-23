@@ -129,7 +129,10 @@ export function TaskBoardFilters({ boardId, filters, onChange }: TaskBoardFilter
           })
         }
       >
-        <SelectTrigger className="h-8 w-40" aria-label={t('tasks.priority')}>
+        <SelectTrigger
+          className="h-8 min-w-0 flex-1 sm:w-40 sm:flex-none"
+          aria-label={t('tasks.priority')}
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -160,7 +163,10 @@ export function TaskBoardFilters({ boardId, filters, onChange }: TaskBoardFilter
 
       <div className="flex w-full items-center gap-1 sm:ml-auto sm:w-auto">
         <Select value={selectedId || 'none'} onValueChange={applySavedFilter}>
-          <SelectTrigger className="h-8 min-w-44" aria-label={t('tasks.savedFilters')}>
+          <SelectTrigger
+            className="h-8 min-w-0 flex-1 sm:min-w-44 sm:flex-none"
+            aria-label={t('tasks.savedFilters')}
+          >
             <BookmarkIcon className="size-3.5" />
             <SelectValue placeholder={t('tasks.savedFilters')} />
           </SelectTrigger>

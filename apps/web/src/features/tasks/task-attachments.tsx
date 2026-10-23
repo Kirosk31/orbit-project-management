@@ -158,7 +158,7 @@ export function TaskAttachments({ taskId }: { taskId: string }): ReactNode {
                         avatarKey={attachment.uploaderAvatarKey}
                         alt={attachment.uploaderName}
                       />
-                      <AvatarFallback className="text-[9px]">
+                      <AvatarFallback className="text-[0.6875rem] tracking-tighter">
                         {initialsOf(attachment.uploaderName)}
                       </AvatarFallback>
                     </Avatar>

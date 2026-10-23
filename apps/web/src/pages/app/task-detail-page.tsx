@@ -510,7 +510,7 @@ export function TaskDetailPage(): ReactNode {
                                 avatarKey={member.avatarKey}
                                 alt={member.fullName}
                               />
-                              <AvatarFallback className="text-[0.5rem]">
+                              <AvatarFallback className="text-[0.6875rem] tracking-tighter">
                                 {initialsOf(member.fullName)}
                               </AvatarFallback>
                             </Avatar>

@@ -80,7 +80,9 @@ function DemoCardView({ card, done }: { card: DemoCard; done: boolean }): ReactN
         <span className="flex -space-x-1.5">
           {card.people.map((person) => (
             <Avatar key={person} className="size-5 ring-2 ring-card">
-              <AvatarFallback className="text-[0.5rem]">{person}</AvatarFallback>
+              <AvatarFallback className="text-[0.6875rem] tracking-tighter">
+                {person}
+              </AvatarFallback>
             </Avatar>
           ))}
         </span>
@@ -113,8 +115,8 @@ function LiveBoard(): ReactNode {
   ]
 
   return (
-    <div className="rounded-xl bg-background p-1.5 text-foreground shadow-overlay">
-      <div className="rounded-lg border bg-background">
+    <div className="overflow-hidden rounded-xl bg-background text-foreground shadow-overlay">
+      <div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-3">
           <span className="text-sm font-semibold">{t('hero.boardName')}</span>
           <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">

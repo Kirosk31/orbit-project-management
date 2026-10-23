@@ -325,7 +325,7 @@ export function ProfilePage(): ReactNode {
               <>
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div className="flex flex-col gap-2">
-                    <Label>{t('app.themePreference')}</Label>
+                    <Label htmlFor="pref-theme">{t('app.themePreference')}</Label>
                     <Select
                       value={preferences.theme}
                       onValueChange={(theme) => {
@@ -335,7 +335,7 @@ export function ProfilePage(): ReactNode {
                         })
                       }}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger id="pref-theme">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -346,7 +346,7 @@ export function ProfilePage(): ReactNode {
                     </Select>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <Label>{t('app.languagePreference')}</Label>
+                    <Label htmlFor="pref-language">{t('app.languagePreference')}</Label>
                     <Select
                       value={preferences.locale}
                       onValueChange={(locale) => {
@@ -356,7 +356,7 @@ export function ProfilePage(): ReactNode {
                         })
                       }}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger id="pref-language">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -382,10 +382,16 @@ export function ProfilePage(): ReactNode {
                     className="flex items-center justify-between gap-4 border-b pb-4 last:border-b-0 last:pb-0"
                   >
                     <div>
-                      <p className="text-sm font-medium">{t(titleKey)}</p>
-                      <p className="text-muted-foreground text-xs">{t(hintKey)}</p>
+                      <label htmlFor={`pref-${key}`} className="text-sm font-medium">
+                        {t(titleKey)}
+                      </label>
+                      <p id={`pref-${key}-hint`} className="text-muted-foreground text-xs">
+                        {t(hintKey)}
+                      </p>
                     </div>
                     <Switch
+                      id={`pref-${key}`}
+                      aria-describedby={`pref-${key}-hint`}
                       checked={preferences[key]}
                       onCheckedChange={(checked) => {
                         queryClient.setQueryData(getUserPreferencesQueryKey(userId), {
