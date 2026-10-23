@@ -56,6 +56,9 @@ describeDb('durable outbox', () => {
   })
 
   it('delivers and completes a queued email', async () => {
+    // Earlier suites leave their own deliveries pending; the worker claims any
+    // pending event, so start from an empty queue to keep this test order-independent.
+    await app.prisma.outboxEvent.deleteMany({ where: { status: 'PENDING' } })
     const event = await enqueue('Successful delivery')
     const sendMail = vi.fn(async (_options: SendMailOptions) => undefined)
     const worker = new OutboxWorker(
