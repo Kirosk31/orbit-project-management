@@ -359,6 +359,16 @@ export const fr = {
     recentProjects: 'Dans cet espace',
     breadcrumb: 'Vous êtes ici',
     personalWorkspace: 'Personnel',
+    brandTitle: 'Couleur de marque',
+    brandHint:
+      'Voyez Orbit aux couleurs de vos clients. Seul ce navigateur change et le contraste reste accessible.',
+    brandReset: "Revenir au cobalt d'Orbit",
+    brandCobalt: 'Cobalt',
+    brandTeal: 'Turquoise',
+    brandGreen: 'Vert',
+    brandBrick: 'Brique',
+    brandPlum: 'Prune',
+    brandViolet: 'Violet',
   },
   org: {
     title: 'Organisations',

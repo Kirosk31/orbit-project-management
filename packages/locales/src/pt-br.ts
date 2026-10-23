@@ -357,6 +357,16 @@ export const ptBR = {
     recentProjects: 'Neste espaço',
     breadcrumb: 'Você está aqui',
     personalWorkspace: 'Pessoal',
+    brandTitle: 'Cor da marca',
+    brandHint:
+      'Veja o Orbit nas cores dos seus clientes. Só este navegador muda e o contraste continua acessível.',
+    brandReset: 'Voltar ao cobalto do Orbit',
+    brandCobalt: 'Cobalto',
+    brandTeal: 'Turquesa',
+    brandGreen: 'Verde',
+    brandBrick: 'Tijolo',
+    brandPlum: 'Ameixa',
+    brandViolet: 'Violeta',
   },
   org: {
     title: 'Organizações',

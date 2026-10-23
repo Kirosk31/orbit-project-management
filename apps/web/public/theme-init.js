@@ -15,4 +15,13 @@
   var root = document.documentElement
   root.classList.toggle('dark', dark)
   root.style.colorScheme = dark ? 'dark' : 'light'
+  // Tenant brand hue, same store as BrandProvider.
+  try {
+    var brand = JSON.parse(localStorage.getItem('orbit.brand') || 'null')
+    var hue = brand && brand.state && Number(brand.state.hue)
+    if (hue && hue !== 264 && hue > 0 && hue <= 360)
+      root.style.setProperty('--brand-hue', String(hue))
+  } catch {
+    // Default skin.
+  }
 })()

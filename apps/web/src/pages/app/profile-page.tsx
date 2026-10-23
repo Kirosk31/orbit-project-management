@@ -34,6 +34,7 @@ import {
   logoutRequest,
   resendVerificationRequest,
 } from '@/features/auth/auth-api'
+import { BrandPicker } from '@/features/theme/brand-picker'
 import { useThemeStore, type ThemePreference } from '@/features/theme/theme-store'
 import { LOCALE_OPTIONS } from '@/features/i18n/locale-options'
 import { applyLocale, getCurrentLocale, type Locale } from '@/lib/i18n'
@@ -309,6 +310,16 @@ export function ProfilePage(): ReactNode {
                 {profileMutation.isPending ? t('common.loading') : t('app.saveProfile')}
               </Button>
             </form>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">{t('app.brandTitle')}</CardTitle>
+            <CardDescription>{t('app.brandHint')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <BrandPicker />
           </CardContent>
         </Card>
 

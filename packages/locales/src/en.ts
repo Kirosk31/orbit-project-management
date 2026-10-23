@@ -355,6 +355,16 @@ export const en = {
     recentProjects: 'In this workspace',
     breadcrumb: 'You are here',
     personalWorkspace: 'Personal',
+    brandTitle: 'Brand color',
+    brandHint:
+      "Preview how Orbit looks in your clients' colors. Only this browser changes, and contrast stays accessible.",
+    brandReset: 'Back to Orbit cobalt',
+    brandCobalt: 'Cobalt',
+    brandTeal: 'Teal',
+    brandGreen: 'Green',
+    brandBrick: 'Brick',
+    brandPlum: 'Plum',
+    brandViolet: 'Violet',
   },
   org: {
     title: 'Organizations',
