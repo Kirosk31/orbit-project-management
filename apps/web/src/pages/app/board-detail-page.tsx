@@ -7,7 +7,6 @@ import {
   ArrowLeftIcon,
   ArrowRightIcon,
   ArrowUpRightIcon,
-  CircleCheckIcon,
   Columns3Icon,
   ListIcon,
   MoreHorizontalIcon,
@@ -27,6 +26,7 @@ import type { z } from 'zod'
 import { ColorSwatchPicker } from '@/components/shared/color-swatch-picker'
 import { EmptyState, PageContainer, PageHeader } from '@/components/shared/page'
 import { TilePanel } from '@orbit/brand'
+import { CompletionMark } from '@/features/tasks/completion-mark'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -888,7 +888,9 @@ function TaskCard({ task, isDragging, onOpen, onDragStart, onDragEnd }: TaskCard
     >
       <span className="flex items-start gap-2 pr-6">
         {task.isCompleted && (
-          <CircleCheckIcon className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
+          <span className="mt-0.5 shrink-0">
+            <CompletionMark completed size={16} turn={90} completedAt={task.completedAt} />
+          </span>
         )}
         <span
           id={`task-title-${task.id}`}

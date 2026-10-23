@@ -6,7 +6,6 @@ import { motion } from 'framer-motion'
 import {
   ArchiveIcon,
   ArrowLeftIcon,
-  CheckIcon,
   PencilIcon,
   PlusIcon,
   TagIcon,
@@ -27,6 +26,7 @@ import { ColorSwatchPicker } from '@/components/shared/color-swatch-picker'
 import { DateField } from '@/components/shared/date-field'
 import { EmptyState, PageContainer } from '@/components/shared/page'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { CompletionMark } from '@/features/tasks/completion-mark'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -343,14 +343,14 @@ export function TaskDetailPage(): ReactNode {
               aria-label={task.isCompleted ? t('tasks.incomplete') : t('tasks.complete')}
               title={task.isCompleted ? t('tasks.incomplete') : t('tasks.complete')}
               onClick={() => updateMutation.mutate({ isCompleted: !task.isCompleted })}
-              className={cn(
-                'mt-1 flex size-7 shrink-0 items-center justify-center rounded-md border-2 transition-colors duration-200',
-                task.isCompleted
-                  ? 'border-success bg-success text-success-foreground'
-                  : 'border-input text-transparent hover:border-success hover:text-success',
-              )}
+              className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-md transition-colors duration-200 hover:bg-accent"
             >
-              <CheckIcon className="size-4" strokeWidth={3} />
+              <CompletionMark
+                completed={task.isCompleted}
+                size={28}
+                turn={90}
+                completedAt={task.completedAt}
+              />
             </motion.button>
             <div className="min-w-0 flex-1">
               {editingTitle ? (

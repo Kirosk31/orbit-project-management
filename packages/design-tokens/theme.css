@@ -119,6 +119,25 @@
   }
 }
 
+/* A finished task glazes its tile: the quarter-circle grows from the corner, with a small overshoot. */
+@keyframes glaze {
+  0% {
+    transform: scale(0);
+  }
+  62% {
+    transform: scale(1.14);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@utility animate-glaze {
+  animation: glaze 560ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  transform-box: fill-box;
+  transform-origin: 0 100%;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

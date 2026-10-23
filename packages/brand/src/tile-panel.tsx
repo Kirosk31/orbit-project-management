@@ -72,9 +72,11 @@ interface TileGlyphProps {
   state: TileState
   size: number
   turn: number
+  /** Plays the glaze animation on the quarter-circle; set for the moment a task finishes. */
+  glaze?: boolean
 }
 
-export function TileGlyph({ state, size, turn }: TileGlyphProps): ReactNode {
+export function TileGlyph({ state, size, turn, glaze = false }: TileGlyphProps): ReactNode {
   const style: CSSProperties = { width: size, height: size }
   return (
     <svg
@@ -107,7 +109,10 @@ export function TileGlyph({ state, size, turn }: TileGlyphProps): ReactNode {
         ) : (
           <path
             d="M0 5a11 11 0 0 1 11 11H0z"
-            className="origin-bottom-left transition-transform duration-300 ease-out"
+            className={classNames(
+              'origin-bottom-left transition-transform duration-300 ease-out',
+              glaze && state === 'done' && 'animate-glaze',
+            )}
             fill={state === 'done' ? 'var(--tile-glaze)' : 'var(--warning-foreground)'}
             fillOpacity={state === 'done' ? 0.92 : 0.55}
           />
