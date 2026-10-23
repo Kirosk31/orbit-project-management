@@ -49,7 +49,7 @@ Three claims the product must prove together, confirmed by the owner:
   `src/styles/globals.css`), Radix primitives, lucide icons, framer-motion, i18next.
 - Content Security Policy (`deploy/security-headers.conf`) allows fonts only from `'self'` and
   `data:`: every typeface must be self-hosted.
-- Every visible string goes through i18n in four locales (`src/locales/{en,es,fr,pt-br}.ts`);
+- Every visible string goes through i18n in four locales (`packages/locales/src/{en,es,fr,pt-br}.ts`, shared with the public site);
   `src/lib/i18n.test.ts` enforces identical keys.
 - Playwright and Axe journeys depend on accessible names and English copy (see `e2e/`).
 - Light and dark themes plus system preference are product features.

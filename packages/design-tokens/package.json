@@ -1,0 +1,14 @@
+{
+  "name": "@orbit/design-tokens",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Orbit's Azulejo design tokens: CSS variables for both themes and their Tailwind v4 mapping",
+  "files": [
+    "tokens.css",
+    "theme.css"
+  ],
+  "exports": {
+    "./tokens.css": "./tokens.css",
+    "./theme.css": "./theme.css"
+  }
+}

@@ -8,7 +8,7 @@ import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 
 import { readStorageItem, writeStorageItem } from '@/lib/browser-storage'
-import { en, type EnDictionary } from '@/locales/en'
+import { en, type EnDictionary } from '@orbit/locales/en'
 
 export type { Locale } from '@orbit/shared'
 
@@ -19,9 +19,9 @@ const baseResources = {
 } as const
 
 const catalogLoaders = {
-  es: async () => (await import('@/locales/es')).es,
-  fr: async () => (await import('@/locales/fr')).fr,
-  'pt-BR': async () => (await import('@/locales/pt-br')).ptBR,
+  es: async () => (await import('@orbit/locales/es')).es,
+  fr: async () => (await import('@orbit/locales/fr')).fr,
+  'pt-BR': async () => (await import('@orbit/locales/pt-br')).ptBR,
 } as const
 
 declare module 'i18next' {

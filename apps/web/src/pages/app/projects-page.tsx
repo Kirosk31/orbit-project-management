@@ -178,7 +178,7 @@ export function ProjectsPage(): ReactNode {
       <PageHeader
         title={t('projects.title')}
         description={t('projects.subtitle')}
-        actions={<>{createDialog}</>}
+        actions={createDialog}
       />
 
       {!activeOrg ? (
@@ -240,11 +240,7 @@ export function ProjectsPage(): ReactNode {
                   ))}
                 </ul>
               ) : (
-                <EmptyState
-                  title={t('projects.empty')}
-                  description={t('projects.emptyHint')}
-                  action={filter === 'all' ? createDialog : undefined}
-                />
+                <EmptyState title={t('projects.empty')} description={t('projects.emptyHint')} />
               )}
             </TabsContent>
           </Tabs>
