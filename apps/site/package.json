@@ -2,7 +2,7 @@
   "name": "@orbit/site",
   "version": "0.1.0",
   "private": true,
-  "description": "Orbit public site \u2014 Next.js App Router with static, localized pages and SEO metadata",
+  "description": "Orbit public site — Next.js App Router with static, localized pages and SEO metadata",
   "type": "module",
   "scripts": {
     "dev": "next dev --port 3000",
@@ -34,6 +34,6 @@
     "@types/react-dom": "^19.2.0",
     "tailwindcss": "^4.1.12",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.12"
   }
 }
