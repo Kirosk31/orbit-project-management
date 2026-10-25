@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import type { ReactNode } from 'react'
-import { MonitorIcon, MoonIcon, SunIcon } from 'lucide-react'
+import { CheckIcon, MonitorIcon, MoonIcon, SunIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -38,7 +38,7 @@ export function ThemeToggle(): ReactNode {
           <DropdownMenuItem key={value} onSelect={() => setTheme(value)}>
             {icon}
             <span>{translate(label)}</span>
-            {theme === value && <span className="ml-auto text-xs">✓</span>}
+            {theme === value && <CheckIcon className="ml-auto size-4" />}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

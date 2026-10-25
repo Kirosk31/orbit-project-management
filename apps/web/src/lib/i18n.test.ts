@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { en } from '@/locales/en'
-import { es } from '@/locales/es'
-import { fr } from '@/locales/fr'
-import { ptBR } from '@/locales/pt-br'
+import { en } from '@orbit/locales/en'
+import { es } from '@orbit/locales/es'
+import { fr } from '@orbit/locales/fr'
+import { ptBR } from '@orbit/locales/pt-br'
 import i18n, {
   applyLocale,
   detectLocale,

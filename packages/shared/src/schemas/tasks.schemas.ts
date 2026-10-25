@@ -60,6 +60,13 @@ export const taskQuerySchema = z.object({
 
 export type TaskQuery = z.infer<typeof taskQuerySchema>
 
+/** Open work assigned to the caller across every project of one organization. */
+export const myTasksQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(100),
+})
+
+export type MyTasksQuery = z.infer<typeof myTasksQuerySchema>
+
 export const createLabelSchema = z.object({
   name: z.string().trim().min(1, 'Label name is required').max(40),
   color: projectColorSchema.optional().default('#94a3b8'),

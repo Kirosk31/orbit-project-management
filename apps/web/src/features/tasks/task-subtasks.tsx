@@ -46,6 +46,8 @@ export function TaskSubtasks({ taskId }: { taskId: string }): ReactNode {
     void queryClient.invalidateQueries({ queryKey: ['task-subtasks', taskId] })
     void queryClient.invalidateQueries({ queryKey: ['task', taskId] })
     void queryClient.invalidateQueries({ queryKey: ['board-tasks'] })
+    void queryClient.invalidateQueries({ queryKey: ['my-tasks'] })
+    void queryClient.invalidateQueries({ queryKey: ['project-tasks'] })
   }
 
   const createMutation = useMutation({
@@ -82,9 +84,9 @@ export function TaskSubtasks({ taskId }: { taskId: string }): ReactNode {
             <ListChecksIcon className="size-4" />
             {t('tasks.subtasks')}
           </CardTitle>
-          <Badge variant="secondary">{progressLabel}</Badge>
+          {subtasks.length > 0 && <Badge variant="secondary">{progressLabel}</Badge>}
         </div>
-        <Progress value={progress} aria-label={progressLabel} />
+        {subtasks.length > 0 && <Progress value={progress} aria-label={progressLabel} />}
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {query.isPending ? (
@@ -140,7 +142,7 @@ export function TaskSubtasks({ taskId }: { taskId: string }): ReactNode {
               <p className="text-destructive mt-1 text-xs">{form.formState.errors.title.message}</p>
             )}
           </div>
-          <Button type="submit" disabled={createMutation.isPending}>
+          <Button type="submit" variant="secondary" disabled={createMutation.isPending}>
             <PlusIcon />
             {t('tasks.addSubtask')}
           </Button>

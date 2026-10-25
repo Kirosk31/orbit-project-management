@@ -103,6 +103,7 @@ function createFakeRepository(overrides: Partial<TasksRepository> = {}): TasksRe
     updateTask: vi.fn(async (_id, data) => makeTask(data as Partial<Task>)),
     softDeleteTask: vi.fn(async () => undefined),
     listTasks: vi.fn(async () => ({ rows: [], total: 0 })),
+    listAssignedOpenTasks: vi.fn(async () => ({ rows: [], total: 0 })),
     countTasksInColumn: vi.fn(async () => 0),
     countTasksInProject: vi.fn(async () => 0),
     moveTask: vi.fn(async () => makeTask()),
@@ -117,6 +118,7 @@ function createFakeRepository(overrides: Partial<TasksRepository> = {}): TasksRe
     softDeleteLabel: vi.fn(async () => undefined),
     listTaskActivity: vi.fn(async () => []),
     recordTaskActivity: vi.fn(async () => undefined),
+    findUserName: vi.fn(async () => 'Ana Rojas'),
     ...overrides,
   }
   return repository
@@ -284,9 +286,47 @@ describe('TasksService', () => {
         orgId: 'org-1',
         taskId: 'task-1',
         taskTitle: 'Assigned task',
+        actorName: 'Ana Rojas',
         userId: 'user-2',
       }),
     )
+  })
+
+  it('does not notify an actor who assigns a task to themselves', async () => {
+    const notifications = createFakeNotifications({
+      taskAssigned: vi.fn(async () => undefined),
+    })
+    const { service } = buildService({
+      repository: { countTasksInColumn: vi.fn(async () => 0) },
+      organizations: {
+        getMembership: vi.fn(
+          async (): Promise<OrgMembership | null> =>
+            ({
+              id: 'membership-1',
+              orgId: 'org-1',
+              userId: 'user-1',
+              roleId: 'role-1',
+              isActive: true,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              deletedAt: null,
+              role: { key: 'ADMIN', name: 'Admin', isSystem: true, permissions: [] },
+            }) as OrgMembership,
+        ),
+      },
+      notifications,
+    })
+
+    await service.createTask('project-1', 'org-1', 'user-1', {
+      title: 'My own task',
+      description: '',
+      priority: 'NONE',
+      assigneeIds: ['user-1'],
+      labelIds: [],
+      columnId: 'column-1',
+    })
+
+    expect(notifications.taskAssigned).not.toHaveBeenCalled()
   })
 
   it('sends an assignment notification when adding an assignee', async () => {

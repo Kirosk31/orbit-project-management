@@ -29,7 +29,7 @@ Every successful change updates i18next, local storage, and the document's `lang
 
 1. Add its canonical identifier to `SUPPORTED_LOCALES` in the shared package.
 2. Add native label and `Intl` metadata to `locale-options.ts`.
-3. Add a complete dictionary under `apps/web/src/locales` with the exact English key structure and interpolation placeholders.
+3. Add a complete dictionary under `packages/locales/src` (shared by the app and the public site) with the exact English key structure and interpolation placeholders.
 4. Register the resource in `apps/web/src/lib/i18n.ts`.
 5. Update the OpenAPI enum and this document.
 6. Run `npm test`, `npm run typecheck`, `npm run lint`, and `npm run build`.

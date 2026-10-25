@@ -38,3 +38,17 @@ Thumbs.db
 
 # Prisma (generated client is emitted into node_modules)
 *.prisma-new
+
+# Impeccable design skill: keep its bundled data, ignore per-session working files
+!.claude/skills/impeccable/scripts/data/
+**/.impeccable/questions/
+**/.impeccable/review/
+**/.impeccable/mocks/
+**/.impeccable/build/
+**/.impeccable/live/
+**/.impeccable/config.local.json
+
+# Next.js public site
+apps/site/.next/
+apps/site/next-env.d.ts
+apps/site/test-results/

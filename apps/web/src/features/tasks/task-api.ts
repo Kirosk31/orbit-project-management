@@ -32,6 +32,11 @@ export interface TaskListResult {
   total: number
 }
 
+/** Open top-level tasks assigned to the signed-in user, soonest deadline first. */
+export function listMyTasksRequest(orgSlug: string, limit = 100): Promise<TaskListResult> {
+  return api.get<TaskListResult>(`/organizations/${orgSlug}/my-tasks?limit=${limit}`)
+}
+
 export function listProjectTasksRequest(
   projectId: string,
   query?: Partial<TaskQuery>,
@@ -42,6 +47,7 @@ export function listProjectTasksRequest(
   if (query?.priority) params.set('priority', query.priority)
   if (query?.search) params.set('search', query.search)
   if (query?.archived !== undefined) params.set('archived', String(query.archived))
+  if (query?.pageSize) params.set('pageSize', String(query.pageSize))
   const suffix = params.size === 0 ? '' : `?${params.toString()}`
   return api.get<TaskListResult>(`/projects/${projectId}/tasks${suffix}`)
 }

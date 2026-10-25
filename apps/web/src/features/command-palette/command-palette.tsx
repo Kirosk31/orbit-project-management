@@ -66,7 +66,7 @@ function scrollToSection(
 export function CommandPalette(): ReactNode {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { open, closePalette, togglePalette } = useCommandPaletteStore()
+  const { open, closePalette, togglePalette, openPalette } = useCommandPaletteStore()
   const { theme, setTheme } = useThemeStore()
   const isAuthenticated = useAuthStore((state) => state.status === 'authenticated')
   const { currentLocale, changeLocale } = useLocale()
@@ -93,6 +93,8 @@ export function CommandPalette(): ReactNode {
   })
 
   useHotkeys(['mod+k', 'ctrl+k'], () => togglePalette(), !open)
+  // "/" jumps to search, on layouts where it needs Shift as well.
+  useHotkeys(['/', 'shift+/'], () => openPalette(), !open)
 
   const cycleLanguage = (): void => {
     const currentIndex = LOCALE_OPTIONS.findIndex((option) => option.code === currentLocale)

@@ -1,183 +1,161 @@
-import { motion } from 'framer-motion'
+import { LayoutGroup, motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
-import { ArrowRightIcon, PlayIcon, RadioIcon, ZapIcon } from 'lucide-react'
+import { ArrowRightIcon, CircleCheckIcon } from 'lucide-react'
 
+import { TilePanel, type Tile } from '@orbit/brand'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
-const STATS = [
-  { value: '4', key: 'hero.statsProjects' },
-  { value: '5', key: 'hero.statsTeams' },
-  { value: 'Socket.IO', key: 'hero.statsUptime' },
-  { value: 'PostgreSQL', key: 'hero.statsStars' },
-] as const
+type CardKey =
+  | 'hero.boardTaskDesign'
+  | 'hero.boardTaskChecklist'
+  | 'hero.boardTaskKanban'
+  | 'hero.boardTaskRbac'
+  | 'hero.boardTaskNotifications'
 
-interface MockCard {
-  titleKey:
-    | 'hero.boardTaskDesign'
-    | 'hero.boardTaskChecklist'
-    | 'hero.boardTaskKanban'
-    | 'hero.boardTaskRbac'
-    | 'hero.boardTaskNotifications'
-  priority: string
-  avatars: readonly string[]
-  time?: string
+interface DemoCard {
+  key: CardKey
+  people: readonly string[]
+  priority: number
 }
 
-interface MockColumn {
-  titleKey: 'hero.boardTodo' | 'hero.boardInProgress' | 'hero.boardDone'
-  accent: string
-  cards: readonly MockCard[]
+const CARDS: Record<CardKey, DemoCard> = {
+  'hero.boardTaskDesign': { key: 'hero.boardTaskDesign', people: ['SK', 'DR'], priority: 3 },
+  'hero.boardTaskChecklist': { key: 'hero.boardTaskChecklist', people: ['AO'], priority: 1 },
+  'hero.boardTaskKanban': { key: 'hero.boardTaskKanban', people: ['SK', 'AO'], priority: 4 },
+  'hero.boardTaskRbac': { key: 'hero.boardTaskRbac', people: ['DR'], priority: 2 },
+  'hero.boardTaskNotifications': {
+    key: 'hero.boardTaskNotifications',
+    people: ['SK'],
+    priority: 2,
+  },
 }
 
-const BOARD_COLUMNS: readonly MockColumn[] = [
-  {
-    titleKey: 'hero.boardTodo',
-    accent: 'bg-muted-foreground',
-    cards: [
-      {
-        titleKey: 'hero.boardTaskDesign',
-        priority: 'bg-chart-3',
-        avatars: ['SK', 'DR'],
-      },
-      {
-        titleKey: 'hero.boardTaskChecklist',
-        priority: 'bg-muted-foreground',
-        avatars: ['AO'],
-      },
-    ],
-  },
-  {
-    titleKey: 'hero.boardInProgress',
-    accent: 'bg-chart-2',
-    cards: [
-      {
-        titleKey: 'hero.boardTaskKanban',
-        priority: 'bg-chart-5',
-        avatars: ['SK', 'AO', 'DR'],
-        time: '3h 12m',
-      },
-    ],
-  },
-  {
-    titleKey: 'hero.boardDone',
-    accent: 'bg-chart-1',
-    cards: [
-      {
-        titleKey: 'hero.boardTaskRbac',
-        priority: 'bg-chart-1',
-        avatars: ['DR'],
-      },
-      {
-        titleKey: 'hero.boardTaskNotifications',
-        priority: 'bg-success',
-        avatars: ['SK'],
-      },
-    ],
-  },
-] as const
+const TODO: CardKey[] = ['hero.boardTaskDesign', 'hero.boardTaskChecklist']
+const DONE_BEFORE: CardKey[] = ['hero.boardTaskRbac', 'hero.boardTaskNotifications']
+const MOVING: CardKey = 'hero.boardTaskKanban'
 
-function BoardMockup(): ReactNode {
+/** Demonstration only: a sprint with a few finished pieces already laid. */
+function demoTiles(finished: number): Tile[] {
+  return Array.from({ length: 14 }, (_, index) => ({
+    id: `demo-${index}`,
+    state: index < finished ? 'done' : index === 11 ? 'overdue' : 'open',
+  }))
+}
+
+function DemoCardView({ card, done }: { card: DemoCard; done: boolean }): ReactNode {
   const { t } = useTranslation()
+  return (
+    <motion.div
+      layoutId={card.key}
+      transition={{ type: 'spring', stiffness: 260, damping: 30 }}
+      className="flex flex-col gap-2 rounded-md border bg-card p-2.5 shadow-[0_1px_0_var(--border)]"
+    >
+      <span className="flex items-start gap-1.5 text-xs leading-snug font-medium">
+        {done && <CircleCheckIcon className="mt-px size-3.5 shrink-0 text-success" />}
+        <span className={done ? 'text-muted-foreground' : ''}>{t(card.key)}</span>
+      </span>
+      <span className="flex items-center justify-between">
+        <span className="inline-flex items-end gap-px" aria-hidden="true">
+          {[1, 2, 3, 4].map((step) => (
+            <span
+              key={step}
+              className="w-[3px] rounded-[1px]"
+              style={{
+                height: 3 + step * 2,
+                backgroundColor:
+                  step <= card.priority
+                    ? card.priority >= 4
+                      ? 'var(--priority-urgent)'
+                      : card.priority === 3
+                        ? 'var(--priority-high)'
+                        : 'var(--priority-medium)'
+                    : 'var(--border)',
+              }}
+            />
+          ))}
+        </span>
+        <span className="flex -space-x-1.5">
+          {card.people.map((person) => (
+            <Avatar key={person} className="size-5 ring-2 ring-card">
+              <AvatarFallback className="text-[0.6875rem] tracking-tighter">
+                {person}
+              </AvatarFallback>
+            </Avatar>
+          ))}
+        </span>
+      </span>
+    </motion.div>
+  )
+}
+
+/**
+ * The product doing its job: a live board where one card lands in Done and
+ * its tile glazes in the sprint panel. Demonstration content, not customer data.
+ */
+function LiveBoard(): ReactNode {
+  const { t } = useTranslation()
+  const [landed, setLanded] = useState(false)
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setLanded(true), 1400)
+    return () => window.clearTimeout(timer)
+  }, [])
+
+  const finished = landed ? 6 : 5
+  const columns: Array<{
+    key: 'hero.boardTodo' | 'hero.boardInProgress' | 'hero.boardDone'
+    cards: CardKey[]
+  }> = [
+    { key: 'hero.boardTodo', cards: TODO },
+    { key: 'hero.boardInProgress', cards: landed ? [] : [MOVING] },
+    { key: 'hero.boardDone', cards: landed ? [MOVING, ...DONE_BEFORE] : DONE_BEFORE },
+  ]
 
   return (
-    <div className="relative">
-      <div className="absolute -inset-8 rounded-full bg-primary/20 blur-3xl" aria-hidden />
-      <motion.div
-        initial={{ opacity: 0, y: 32, rotateX: 8 }}
-        animate={{ opacity: 1, y: 0, rotateX: 0 }}
-        transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-        className="bg-card relative rounded-xl border shadow-2xl"
-        style={{ transformPerspective: 1000 }}
-      >
-        <div className="flex items-center gap-2 border-b px-4 py-3">
-          <span className="size-2.5 rounded-full bg-chart-5" />
-          <span className="size-2.5 rounded-full bg-chart-3" />
-          <span className="size-2.5 rounded-full bg-chart-1" />
-          <span className="text-muted-foreground ml-3 text-xs font-medium">
-            {t('hero.boardName')}
+    <div className="overflow-hidden rounded-xl bg-background text-foreground shadow-overlay">
+      <div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-3">
+          <span className="text-sm font-semibold">{t('hero.boardName')}</span>
+          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
+            {t('hero.boardOnline')}
           </span>
-          <Badge variant="success" className="ml-auto gap-1">
-            <RadioIcon className="size-3" />
-            {t('hero.boardLive')}
-          </Badge>
+          <TilePanel
+            className="ml-auto"
+            tiles={demoTiles(finished)}
+            size={11}
+            columns={14}
+            label={t('boards.progress', { done: String(finished), total: '14' })}
+          />
         </div>
-
-        <div className="grid grid-cols-3 gap-3 p-4">
-          {BOARD_COLUMNS.map((column, columnIndex) => (
-            <div key={column.titleKey} className="flex flex-col gap-2.5">
-              <div className="flex items-center gap-2 px-1">
-                <span className={`size-2 rounded-full ${column.accent}`} />
-                <span className="text-muted-foreground text-xs font-semibold">
-                  {t(column.titleKey)}
+        <LayoutGroup>
+          <div className="grid grid-cols-3 gap-2.5 p-3">
+            {columns.map((column) => (
+              <div
+                key={column.key}
+                className="flex min-h-48 flex-col gap-2 rounded-md bg-muted/70 p-2"
+              >
+                <span className="flex items-center justify-between px-1 text-xs font-semibold">
+                  {t(column.key)}
+                  <span className="font-normal text-muted-foreground tabular-nums">
+                    {column.cards.length}
+                  </span>
                 </span>
+                {column.cards.map((key) => (
+                  <DemoCardView
+                    key={key}
+                    card={CARDS[key]}
+                    done={column.key === 'hero.boardDone'}
+                  />
+                ))}
               </div>
-              {column.cards.map((card, cardIndex) => (
-                <motion.div
-                  key={card.titleKey}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.45 + columnIndex * 0.12 + cardIndex * 0.1 }}
-                  className="bg-muted/40 flex flex-col gap-2 rounded-lg border p-2.5"
-                >
-                  <div className="flex items-center gap-1.5">
-                    <span className={`size-1.5 rounded-full ${card.priority}`} />
-                    <span className="truncate text-xs font-medium">{t(card.titleKey)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex -space-x-1.5">
-                      {card.avatars.map((avatar) => (
-                        <Avatar key={avatar} className="size-5 border-2 border-card">
-                          <AvatarFallback className="text-[8px]">{avatar}</AvatarFallback>
-                        </Avatar>
-                      ))}
-                    </div>
-                    {card.time && (
-                      <span className="text-muted-foreground flex items-center gap-1 text-[10px]">
-                        <ZapIcon className="size-2.5" />
-                        {card.time}
-                      </span>
-                    )}
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          ))}
-        </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, x: -16 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.9 }}
-        className="bg-card absolute -left-6 -bottom-6 hidden items-center gap-3 rounded-xl border p-3 shadow-lg sm:flex"
-      >
-        <div className="bg-success/10 text-success flex size-9 items-center justify-center rounded-lg">
-          <RadioIcon className="size-4" />
-        </div>
-        <div>
-          <p className="text-xs font-semibold">{t('hero.boardRealtime')}</p>
-          <p className="text-muted-foreground text-[11px]">{t('hero.boardOnline')}</p>
-        </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, x: 16 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 1.05 }}
-        className="bg-card absolute -right-4 -top-5 hidden items-center gap-2 rounded-xl border p-3 shadow-lg sm:flex"
-      >
-        <Badge variant="warning" className="size-9 rounded-lg p-0">
-          <ZapIcon className="size-4" />
-        </Badge>
-        <div>
-          <p className="text-xs font-semibold">{t('hero.boardTaskCount')}</p>
-          <p className="text-muted-foreground text-[11px]">{t('hero.boardDue')}</p>
-        </div>
-      </motion.div>
+            ))}
+          </div>
+        </LayoutGroup>
+      </div>
     </div>
   )
 }
@@ -186,88 +164,45 @@ export function HeroSection(): ReactNode {
   const { t } = useTranslation()
 
   return (
-    <section id="top" className="relative overflow-hidden pt-32 pb-20 sm:pt-40 sm:pb-28">
-      <div
-        className="bg-grid absolute inset-0 [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,black,transparent)]"
-        aria-hidden
-      />
-      <div
-        className="absolute top-0 left-1/2 h-72 w-[42rem] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl"
-        aria-hidden
-      />
-
-      <div className="relative mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid items-center gap-14 lg:grid-cols-[1.05fr_1fr]">
-          <div>
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: 'easeOut' }}
+    <section id="top" className="bg-rail text-rail-foreground">
+      <div className="mx-auto grid w-full max-w-7xl items-center gap-14 px-4 pt-32 pb-20 sm:px-6 sm:pt-36 lg:grid-cols-[1fr_1.05fr] lg:px-8 lg:pb-28">
+        <div>
+          <h1
+            className="text-[2.75rem] leading-[1.02] font-semibold tracking-[-0.03em] text-balance sm:text-6xl lg:text-7xl"
+            style={{ fontStretch: '112%' }}
+          >
+            {t('hero.title')}{' '}
+            <span className="block pt-3 text-[0.55em] leading-tight font-medium tracking-[-0.015em] text-rail-muted-foreground">
+              {t('hero.titleAccent')}
+            </span>
+          </h1>
+          <p className="mt-7 max-w-lg text-lg text-pretty text-rail-muted-foreground">
+            {t('hero.subtitle')}
+          </p>
+          <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+            <Button
+              size="lg"
+              className="bg-rail-foreground text-rail hover:bg-[color-mix(in_srgb,var(--rail-foreground)_88%,var(--rail-accent))]"
+              asChild
             >
-              <Badge variant="secondary" className="gap-2 px-3 py-1">
-                <span className="bg-primary relative flex size-2 rounded-full">
-                  <span className="bg-primary absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" />
-                </span>
-                {t('hero.badge')}
-              </Badge>
-            </motion.div>
-
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1, ease: 'easeOut' }}
-              className="mt-6 text-4xl font-semibold tracking-tight text-balance sm:text-6xl"
+              <Link to="/register">
+                {t('hero.ctaPrimary')}
+                <ArrowRightIcon />
+              </Link>
+            </Button>
+            <Button
+              size="lg"
+              variant="ghost"
+              className="text-rail-foreground hover:bg-rail-accent hover:text-rail-foreground"
+              asChild
             >
-              {t('hero.title')} <span className="text-gradient">{t('hero.titleAccent')}</span>
-            </motion.h1>
-
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2, ease: 'easeOut' }}
-              className="text-muted-foreground mt-6 max-w-xl text-lg text-pretty"
-            >
-              {t('hero.subtitle')}
-            </motion.p>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3, ease: 'easeOut' }}
-              className="mt-8 flex flex-col gap-3 sm:flex-row"
-            >
-              <Button size="lg" className="group" asChild>
-                <Link to="/register">
-                  {t('hero.ctaPrimary')}
-                  <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
-                </Link>
-              </Button>
-              <Button size="lg" variant="outline" className="gap-2" asChild>
-                <Link to="/#features">
-                  <PlayIcon className="size-4" />
-                  {t('hero.ctaSecondary')}
-                </Link>
-              </Button>
-            </motion.div>
-
-            <motion.dl
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.45, ease: 'easeOut' }}
-              className="mt-12 grid grid-cols-2 gap-6 border-t pt-8 sm:grid-cols-4"
-            >
-              {STATS.map((stat) => (
-                <div key={stat.key}>
-                  <dt className="text-muted-foreground order-last text-xs">{t(stat.key)}</dt>
-                  <dd className="text-2xl font-semibold tracking-tight">{stat.value}</dd>
-                </div>
-              ))}
-            </motion.dl>
+              <Link to="/#features">{t('hero.ctaSecondary')}</Link>
+            </Button>
           </div>
+        </div>
 
-          <div className="hidden sm:block">
-            <BoardMockup />
-          </div>
+        <div className="-mx-2 sm:mx-0">
+          <LiveBoard />
         </div>
       </div>
     </section>

@@ -12,6 +12,7 @@ import {
   logTimeEntrySchema,
   moveChecklistItemSchema,
   moveTaskSchema,
+  myTasksQuerySchema,
   paginationQuerySchema,
   startTaskTimerSchema,
   taskQuerySchema,
@@ -511,6 +512,28 @@ export function createTasksRouter(deps: TasksRouterDependencies): Router {
     taskMember,
     requireOrgPermission(Permission.TASK_VIEW),
     controller.activity,
+  )
+
+  /**
+   * @swagger
+   * /organizations/{slug}/my-tasks:
+   *   get:
+   *     summary: Open top-level tasks assigned to the caller in this organization (task.view)
+   *     tags: [Tasks]
+   *     security: [{ bearerAuth: [] }]
+   *     parameters:
+   *       - { name: slug, in: path, required: true, schema: { type: string } }
+   *       - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 100 } }
+   *     responses:
+   *       '200': { description: "Tasks ordered by due date (undated last) with the total count" }
+   */
+  router.get(
+    '/organizations/:slug/my-tasks',
+    requireAuthMiddleware,
+    orgMember,
+    requireOrgPermission(Permission.TASK_VIEW),
+    validateQuery(myTasksQuerySchema),
+    controller.listMine,
   )
 
   router.get(

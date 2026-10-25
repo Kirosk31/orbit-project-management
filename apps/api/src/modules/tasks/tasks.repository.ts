@@ -115,6 +115,8 @@ export interface TasksRepository {
     newValue?: string | null
     metadata?: Prisma.InputJsonValue
   }): Promise<void>
+  findUserName(userId: string): Promise<string | null>
+  listAssignedOpenTasks(orgId: string, userId: string, take: number): Promise<TaskListResult>
 }
 
 const TASK_INCLUDE = {
@@ -270,6 +272,33 @@ export class PrismaTasksRepository implements TasksRepository {
     return { rows: rows.map(toTaskRow), total }
   }
 
+  async listAssignedOpenTasks(
+    orgId: string,
+    userId: string,
+    take: number,
+  ): Promise<TaskListResult> {
+    const where: Prisma.TaskWhereInput = {
+      orgId,
+      deletedAt: null,
+      parentId: null,
+      isArchived: false,
+      isCompleted: false,
+      project: { deletedAt: null, isArchived: false },
+      assignees: { some: { userId } },
+    }
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.task.findMany({
+        where,
+        include: TASK_INCLUDE,
+        // Soonest deadline first; undated work sits after everything with a date.
+        orderBy: [{ dueDate: { sort: 'asc', nulls: 'last' } }, { createdAt: 'asc' }],
+        take,
+      }),
+      this.prisma.task.count({ where }),
+    ])
+    return { rows: rows.map(toTaskRow), total }
+  }
+
   countTasksInColumn(columnId: string) {
     return this.prisma.task.count({
       where: { columnId, parentId: null, deletedAt: null, isArchived: false },
@@ -406,5 +435,13 @@ export class PrismaTasksRepository implements TasksRepository {
     metadata?: Prisma.InputJsonValue
   }): Promise<void> {
     await this.prisma.taskActivity.create({ data })
+  }
+
+  async findUserName(userId: string): Promise<string | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { fullName: true },
+    })
+    return user?.fullName ?? null
   }
 }

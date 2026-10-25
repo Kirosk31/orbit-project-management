@@ -49,6 +49,7 @@ export class CommentsService {
     })
 
     const savedComment = await this.findComment(comment.id)
+    const actorName = savedComment.author.fullName
 
     if (dto.mentionIds.length > 0) {
       await Promise.all(
@@ -57,6 +58,7 @@ export class CommentsService {
             orgId: task.orgId,
             taskId: task.id,
             taskTitle: task.title,
+            actorName,
             userId,
           }),
         ),
@@ -74,6 +76,7 @@ export class CommentsService {
             orgId: task.orgId,
             taskId: task.id,
             taskTitle: task.title,
+            actorName,
             userId,
           }),
         ),

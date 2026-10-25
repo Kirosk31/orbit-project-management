@@ -46,6 +46,17 @@ test('an owner can create a workspace, project, board, column, and task', async 
   await page.getByRole('button', { name: 'Add column', exact: true }).last().click()
   await expect(page.getByText('To Do', { exact: true })).toBeVisible()
 
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  // Keyboard path: "n" opens the same dialog as the button, Escape closes it.
+  await page.keyboard.press('n')
+  await expect(page.getByRole('dialog', { name: 'Add task' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.keyboard.press('/')
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+
   await page.getByRole('button', { name: 'Add task' }).click()
   await page.getByLabel('Title').fill(taskName)
   await page.getByLabel('Description').fill('Created by the critical browser workflow')

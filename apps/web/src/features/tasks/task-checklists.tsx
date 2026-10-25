@@ -422,7 +422,7 @@ export function TaskChecklists({ taskId }: { taskId: string }): ReactNode {
             aria-invalid={createForm.formState.errors.title ? true : undefined}
             {...createForm.register('title')}
           />
-          <Button type="submit" disabled={isMutating}>
+          <Button type="submit" variant="secondary" disabled={isMutating}>
             <PlusIcon />
             {t('tasks.addChecklist')}
           </Button>

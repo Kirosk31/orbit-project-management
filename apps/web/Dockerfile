@@ -6,14 +6,21 @@ ENV HUSKY=0
 
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/package.json
+COPY apps/site/package.json apps/site/package.json
 COPY apps/web/package.json apps/web/package.json
+COPY packages/brand/package.json packages/brand/package.json
+COPY packages/design-tokens/package.json packages/design-tokens/package.json
 COPY packages/eslint-config/package.json packages/eslint-config/package.json
 COPY packages/prettier-config/package.json packages/prettier-config/package.json
+COPY packages/locales/package.json packages/locales/package.json
 COPY packages/shared/package.json packages/shared/package.json
 COPY packages/tsconfig/package.json packages/tsconfig/package.json
 RUN npm ci
 
 COPY apps/web apps/web
+COPY packages/brand packages/brand
+COPY packages/design-tokens packages/design-tokens
+COPY packages/locales packages/locales
 COPY packages/shared packages/shared
 COPY packages/tsconfig packages/tsconfig
 

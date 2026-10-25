@@ -3,37 +3,50 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import { ArrowRightIcon } from 'lucide-react'
 
+import { TileGlyph, type TileState } from '@orbit/brand'
 import { Button } from '@/components/ui/button'
-import { Reveal } from '@/components/shared/reveal'
+
+const WALL: TileState[] = Array.from({ length: 18 }, (_, index) =>
+  index === 7 ? 'overdue' : index % 5 === 3 ? 'open' : 'done',
+)
 
 export function CtaSection(): ReactNode {
   const { t } = useTranslation()
 
   return (
-    <section className="pb-20 sm:pb-28">
+    <section className="py-20 sm:py-28">
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-        <Reveal>
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-600 via-purple-600 to-cyan-600 px-6 py-16 text-center sm:px-16 sm:py-20">
-            <div className="bg-dots absolute inset-0 opacity-20" aria-hidden />
-            <div className="relative">
-              <h2 className="mx-auto max-w-2xl text-3xl font-semibold tracking-tight text-balance text-white sm:text-4xl">
-                {t('cta.title')}
-              </h2>
-              <p className="mx-auto mt-4 max-w-xl text-pretty text-white/80">{t('cta.subtitle')}</p>
-              <Button
-                size="lg"
-                variant="secondary"
-                className="group mt-8 bg-white text-foreground hover:bg-white/90"
-                asChild
-              >
-                <Link to="/register">
-                  {t('cta.button')}
-                  <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
-                </Link>
-              </Button>
-            </div>
+        <div className="grid items-center gap-10 overflow-hidden rounded-xl bg-rail px-6 py-14 text-rail-foreground sm:px-12 md:grid-cols-[1.4fr_1fr]">
+          <div>
+            <h2
+              className="max-w-xl text-3xl font-semibold tracking-[-0.02em] text-balance sm:text-4xl"
+              style={{ fontStretch: '110%' }}
+            >
+              {t('cta.title')}
+            </h2>
+            <p className="mt-4 max-w-lg text-pretty text-rail-muted-foreground">
+              {t('cta.subtitle')}
+            </p>
+            <Button
+              size="lg"
+              className="mt-8 bg-rail-foreground text-rail hover:bg-[color-mix(in_srgb,var(--rail-foreground)_88%,var(--rail-accent))]"
+              asChild
+            >
+              <Link to="/register">
+                {t('cta.button')}
+                <ArrowRightIcon />
+              </Link>
+            </Button>
           </div>
-        </Reveal>
+          <div
+            className="hidden w-fit grid-cols-6 gap-1.5 justify-self-end md:grid [--tile-done:var(--rail-accent)] [--tile-glaze:var(--rail-foreground)] [--tile-open:color-mix(in_srgb,var(--rail)_70%,var(--rail-accent))]"
+            aria-hidden="true"
+          >
+            {WALL.map((state, index) => (
+              <TileGlyph key={index} state={state} size={40} turn={((index * 5) % 4) * 90} />
+            ))}
+          </div>
+        </div>
       </div>
     </section>
   )
