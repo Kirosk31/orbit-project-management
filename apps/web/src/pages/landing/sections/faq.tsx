@@ -5,7 +5,6 @@ import { ChevronDownIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { SectionHeading } from '@/components/marketing/section-heading'
-import { RevealItem, RevealStagger } from '@/components/shared/reveal'
 import { cn } from '@/lib/utils'
 
 const QUESTIONS = [
@@ -25,12 +24,12 @@ export function FaqSection(): ReactNode {
       <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8">
         <SectionHeading titleKey="faq.heading" />
 
-        <RevealStagger className="mt-12 flex flex-col gap-3">
+        <div className="mt-12 flex flex-col gap-3">
           {QUESTIONS.map(({ q, a }, index) => {
             const isOpen = openIndex === index
             return (
-              <RevealItem key={q}>
-                <div className="bg-card rounded-xl border">
+              <div key={q}>
+                <div className="bg-card rounded-lg border">
                   <Button
                     variant="ghost"
                     className="w-full justify-between px-5 py-4 text-base font-medium"
@@ -58,10 +57,10 @@ export function FaqSection(): ReactNode {
                     </div>
                   </div>
                 </div>
-              </RevealItem>
+              </div>
             )
           })}
-        </RevealStagger>
+        </div>
       </div>
     </section>
   )

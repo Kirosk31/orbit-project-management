@@ -56,6 +56,7 @@ function createFakeOrganizationsRepository(overrides: Partial<OrganizationsRepos
     softDeleteOrg: vi.fn(async () => undefined),
     listOrgsForUser: vi.fn(async () => []),
     getMembership: vi.fn(async () => null),
+    countActiveMembers: vi.fn(async () => 0),
     countMembers: vi.fn(async () => 0),
     listMembers: vi.fn(async () => []),
     findMember: vi.fn(async () => null),

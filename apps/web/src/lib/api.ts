@@ -2,6 +2,9 @@ import { ApiErrorCode, type ApiEnvelope, type AuthResponseDto } from '@orbit/sha
 import { env } from './env'
 import { buildQueryString } from './utils'
 
+/** No request waits forever: a stalled API must surface as an error, not a spinner. */
+const DEFAULT_TIMEOUT_MS = 20_000
+
 export const CSRF_HEADER_NAME = 'x-csrf-token'
 export const AUTH_REFRESH_PATH = '/auth/refresh'
 export const AUTH_CSRF_PATH = '/auth/csrf'
@@ -152,7 +155,7 @@ async function execute<T>(path: string, options: ApiRequestOptions): Promise<T> 
 
   const signals: AbortSignal[] = []
   if (options.signal) signals.push(options.signal)
-  if (timeoutMs !== undefined) signals.push(AbortSignal.timeout(timeoutMs))
+  signals.push(AbortSignal.timeout(timeoutMs ?? DEFAULT_TIMEOUT_MS))
   const signal = signals.length > 0 ? AbortSignal.any(signals) : undefined
 
   let response: Response
@@ -165,6 +168,13 @@ async function execute<T>(path: string, options: ApiRequestOptions): Promise<T> 
       signal,
     })
   } catch (error) {
+    if (error instanceof DOMException && error.name === 'TimeoutError') {
+      throw new ApiClientError(
+        0,
+        ApiErrorCode.SERVICE_UNAVAILABLE,
+        'The server took too long to answer',
+      )
+    }
     if (error instanceof DOMException && error.name === 'AbortError') {
       throw new ApiClientError(0, ApiErrorCode.BAD_REQUEST, 'Request aborted')
     }

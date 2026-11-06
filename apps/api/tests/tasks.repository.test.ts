@@ -16,7 +16,7 @@ describe('PrismaTasksRepository.moveTask', () => {
     const findMany = vi.fn(async () => [{ id: 'task-sibling' }])
     const update = vi.fn(async () => task)
     const transaction = vi.fn(async (callback: (tx: unknown) => Promise<Task>) =>
-      callback({ task: { findUnique, findMany, update } }),
+      callback({ task: { findUnique, findMany, update }, $executeRaw: vi.fn(async () => 2) }),
     )
     const prisma = { $transaction: transaction } as unknown as PrismaClient
     const repository = new PrismaTasksRepository(prisma)
@@ -37,5 +37,59 @@ describe('PrismaTasksRepository.moveTask', () => {
       orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
       select: { id: true },
     })
+  })
+})
+
+describe('PrismaTasksRepository list queries', () => {
+  function buildRepository() {
+    const card = {
+      id: 'task-a',
+      title: 'Card',
+      status: { name: 'To Do' },
+      assignees: [
+        {
+          id: 'assignee-a',
+          user: { id: 'user-a', email: 'a@example.com', fullName: 'A', avatarKey: null },
+        },
+      ],
+      labels: [{ id: 'task-label-a', label: { id: 'label-a', name: 'Bug', color: '#f00' } }],
+      subtasks: [{ isCompleted: true }],
+    }
+    const findMany = vi.fn(async () => [card])
+    const count = vi.fn(async () => 1)
+    const prisma = {
+      task: { findMany, count },
+      $transaction: vi.fn(async (queries: Array<Promise<unknown>>) => Promise.all(queries)),
+    } as unknown as PrismaClient
+    return { repository: new PrismaTasksRepository(prisma), findMany }
+  }
+
+  it('loads board and project lists without the description', async () => {
+    const { repository, findMany } = buildRepository()
+
+    const result = await repository.listTasks('project-a', { archived: false }, 0, 100)
+
+    const query = (findMany.mock.calls[0] as unknown[])[0] as {
+      select: Record<string, unknown>
+    }
+    expect(query.select).toMatchObject({ id: true, title: true, status: expect.anything() })
+    expect(query.select).not.toHaveProperty('description')
+    expect(query).not.toHaveProperty('include')
+    expect(result.rows[0]).toMatchObject({
+      statusName: 'To Do',
+      assignees: [{ id: 'assignee-a', userId: 'user-a', fullName: 'A' }],
+      labels: [{ id: 'task-label-a', labelId: 'label-a', name: 'Bug' }],
+    })
+  })
+
+  it('loads my open tasks without the description', async () => {
+    const { repository, findMany } = buildRepository()
+
+    await repository.listAssignedOpenTasks('org-a', 'user-a', 20)
+
+    const query = (findMany.mock.calls[0] as unknown[])[0] as {
+      select: Record<string, unknown>
+    }
+    expect(query.select).not.toHaveProperty('description')
   })
 })

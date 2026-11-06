@@ -1,10 +1,9 @@
-import { randomUUID } from 'node:crypto'
 import cookieParser from 'cookie-parser'
 import express, { type Express } from 'express'
 import helmet from 'helmet'
-import { pinoHttp } from 'pino-http'
 import type { AppConfig } from './config/index.js'
 import type { Logger } from './core/logger/logger.js'
+import { createHttpLogger } from './core/logger/http-logger.js'
 import type { CacheService } from './shared/cache/CacheService.js'
 import {
   createCorsMiddleware,
@@ -42,6 +41,7 @@ import type { SearchService } from './modules/search/search.service.js'
 import type { AnalyticsService } from './modules/analytics/analytics.service.js'
 import { createDocsRouter } from './modules/docs/docs.routes.js'
 import { createApiRouter } from './routes.js'
+import { createRumRouter, RUM_PATH } from './modules/rum/rum.routes.js'
 import type { BillingService } from './modules/billing/billing.service.js'
 
 export interface AppDependencies {
@@ -87,14 +87,18 @@ export function createApp(deps: AppDependencies): Express {
   }
 
   app.use(requestIdMiddleware)
-  app.use(
-    pinoHttp({
-      logger: deps.logger,
-      genReqId: (req) => (req as Express.Request).requestId ?? randomUUID(),
-    }),
-  )
+  app.use(createHttpLogger(deps.logger, RUM_PATH))
   app.use(helmet())
   app.use(createCorsMiddleware(deps.config.cors))
+  // Ahead of the 1 MB body parser and the CSRF check: see createRumRouter.
+  app.use(
+    RUM_PATH,
+    createRumRouter({
+      logger: deps.logger,
+      rateLimiterService: deps.rateLimiterService,
+      rateLimit: deps.config.rateLimit.application.rum,
+    }),
+  )
   app.use(express.json({ limit: '1mb' }))
   app.use(cookieParser())
 

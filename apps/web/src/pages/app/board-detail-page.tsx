@@ -1,32 +1,33 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createColumnSchema, createTaskSchema, updateBoardSchema } from '@orbit/shared'
-import type { SavedTaskFilterValues } from '@orbit/shared'
+import type { ColumnDto, SavedTaskFilterValues, TaskListItemDto } from '@orbit/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArchiveIcon,
   ArrowLeftIcon,
-  CalendarIcon,
-  CircleIcon,
   Columns3Icon,
-  GripVerticalIcon,
   ListIcon,
+  MoreHorizontalIcon,
   PencilIcon,
   PlusIcon,
-  RadioIcon,
   Trash2Icon,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { useForm } from 'react-hook-form'
 import type { DragEvent, ReactNode } from 'react'
-import { useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import type { z } from 'zod'
 
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { ColorSwatchPicker } from '@/components/shared/color-swatch-picker'
+import { EmptyState, PageContainer, PageHeader } from '@/components/shared/page'
+import { TilePanel } from '@orbit/brand'
+import type { TaskListResult } from '@/features/tasks/task-api'
+import { useHotkeys } from '@/hooks/use-hotkeys'
+import { moveTaskInList, shiftColumnCounts } from '@/lib/optimistic'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -36,6 +37,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -61,15 +69,23 @@ import {
 } from '@/features/boards/board-api'
 import {
   createTaskRequest,
-  listBoardTasksRequest,
+  listAllBoardTasksRequest,
   moveTaskRequest,
 } from '@/features/tasks/task-api'
-import { SecureAvatarImage } from '@/features/users/secure-avatar-image'
+import { PriorityMark } from '@/features/tasks/task-meta'
 import { TaskBoardFilters } from '@/features/tasks/task-board-filters'
 import { useProjectRealtime } from '@/features/realtime/use-project-realtime'
+import { useBreadcrumbs } from '@/features/app/breadcrumbs'
+import { getProjectRequest } from '@/features/projects/project-api'
+import { BoardColumn } from '@/features/boards/board-column'
+import { groupTasksByColumn } from '@/features/boards/group-tasks'
 import { BoardListView } from '@/features/boards/board-list-view'
-import { formatDate, getContrastTextColor, initialsOf } from '@/lib/utils'
-import { COLUMN_COLORS, PRIORITY_COLORS } from '@/lib/task-colors'
+import { COLUMN_COLORS } from '@/lib/task-colors'
+import { tilesFromTasks } from '@/lib/tiles'
+import { cn } from '@/lib/utils'
+
+const NO_COLUMNS: ColumnDto[] = []
+const NO_TASKS: TaskListItemDto[] = []
 
 export function BoardDetailPage(): ReactNode {
   const { t } = useTranslation()
@@ -96,22 +112,40 @@ export function BoardDetailPage(): ReactNode {
   const board = boardQuery.data
   const onlineUserIds = useProjectRealtime(board?.projectId ?? '')
 
+  const projectQuery = useQuery({
+    queryKey: ['project', board?.projectId],
+    queryFn: () => getProjectRequest(board!.projectId),
+    enabled: board !== undefined,
+  })
+  const projectName = projectQuery.data?.name
+  useBreadcrumbs(
+    board
+      ? [
+          { label: t('projects.title'), to: '/app/projects' },
+          { label: projectName ?? '…', to: `/app/projects/${board.projectId}` },
+          { label: board.name },
+        ]
+      : [],
+  )
+
   const columnsQuery = useQuery({
     queryKey: ['board-columns', boardId],
     queryFn: () => listColumnsRequest(boardId),
-    enabled: board !== undefined,
+    enabled: boardId !== '',
   })
 
   const tasksQuery = useQuery({
     queryKey: ['board-tasks', boardId, taskFilters],
-    queryFn: () => listBoardTasksRequest(boardId, taskFilters),
-    enabled: board !== undefined,
+    queryFn: () => listAllBoardTasksRequest(boardId, taskFilters),
+    enabled: boardId !== '',
   })
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['board', boardId] })
     queryClient.invalidateQueries({ queryKey: ['board-columns', boardId] })
     queryClient.invalidateQueries({ queryKey: ['board-tasks', boardId] })
+    queryClient.invalidateQueries({ queryKey: ['my-tasks'] })
+    queryClient.invalidateQueries({ queryKey: ['project-tasks'] })
     queryClient.invalidateQueries({ queryKey: ['boards'] })
   }
 
@@ -169,7 +203,7 @@ export function BoardDetailPage(): ReactNode {
     onError: () => toast.error(t('auth.genericError')),
   })
 
-  const renameMutation = useMutation({
+  const { mutate: renameColumn } = useMutation({
     mutationFn: (input: { columnId: string; name: string }) =>
       updateColumnRequest(input.columnId, { name: input.name }),
     onSuccess: () => {
@@ -180,7 +214,7 @@ export function BoardDetailPage(): ReactNode {
     onError: () => toast.error(t('auth.genericError')),
   })
 
-  const deleteColumnMutation = useMutation({
+  const { mutate: deleteColumn } = useMutation({
     mutationFn: (columnId: string) => deleteColumnRequest(columnId),
     onSuccess: () => {
       invalidate()
@@ -189,7 +223,7 @@ export function BoardDetailPage(): ReactNode {
     onError: () => toast.error(t('auth.genericError')),
   })
 
-  const moveMutation = useMutation({
+  const { mutate: moveColumn } = useMutation({
     mutationFn: (input: { columnId: string; toPosition: number }) =>
       moveColumnRequest(input.columnId, input.toPosition),
     onSuccess: invalidate,
@@ -217,18 +251,53 @@ export function BoardDetailPage(): ReactNode {
     onError: () => toast.error(t('auth.genericError')),
   })
 
-  const moveTaskMutation = useMutation({
+  const { mutate: moveTask } = useMutation({
     mutationFn: (input: { taskId: string; columnId: string }) =>
       moveTaskRequest(input.taskId, { columnId: input.columnId }),
-    onSuccess: () => {
-      invalidate()
-      toast.success(t('tasks.cardMoved'))
+    // The card lands immediately; the server confirms in the background.
+    onMutate: async ({ taskId, columnId }) => {
+      const target = columnsQuery.data?.find((column) => column.id === columnId)
+      await queryClient.cancelQueries({ queryKey: ['board-tasks', boardId] })
+      await queryClient.cancelQueries({ queryKey: ['board-columns', boardId] })
+      const previousTasks = queryClient.getQueriesData<TaskListResult>({
+        queryKey: ['board-tasks', boardId],
+      })
+      const previousColumns = queryClient.getQueryData<ColumnDto[]>(['board-columns', boardId])
+      const fromColumnId =
+        previousTasks.flatMap(([, data]) => data?.rows ?? []).find((task) => task.id === taskId)
+          ?.columnId ?? null
+      if (target) {
+        queryClient.setQueriesData<TaskListResult>({ queryKey: ['board-tasks', boardId] }, (list) =>
+          moveTaskInList(list, taskId, target),
+        )
+        queryClient.setQueryData<ColumnDto[]>(['board-columns', boardId], (columns) =>
+          shiftColumnCounts(columns, fromColumnId, columnId),
+        )
+      }
+      return { previousTasks, previousColumns }
     },
-    onError: () => toast.error(t('auth.genericError')),
+    onError: (_error, _input, context) => {
+      context?.previousTasks.forEach(([key, data]) => queryClient.setQueryData(key, data))
+      queryClient.setQueryData(['board-columns', boardId], context?.previousColumns)
+      toast.error(t('auth.genericError'))
+    },
+    onSuccess: () => toast.success(t('tasks.cardMoved')),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['board-tasks', boardId] })
+      void queryClient.invalidateQueries({ queryKey: ['board-columns', boardId] })
+      void queryClient.invalidateQueries({ queryKey: ['my-tasks'] })
+    },
   })
 
-  const columns = columnsQuery.data ?? []
-  const tasks = tasksQuery.data?.rows ?? []
+  const columns = columnsQuery.data ?? NO_COLUMNS
+
+  // "n" drops a new task into the first column, unless something is already open on top.
+  useHotkeys(['n'], () => {
+    const first = columns[0]
+    if (!first || document.querySelector('[role="dialog"]')) return
+    setAddTaskForColumn(first.id)
+  })
+  const tasks = tasksQuery.data?.rows ?? NO_TASKS
   const isFiltering = Boolean(
     taskFilters.search ||
     taskFilters.priority ||
@@ -236,589 +305,472 @@ export function BoardDetailPage(): ReactNode {
     taskFilters.statusId ||
     taskFilters.archived,
   )
-  const tasksByColumn = new Map<string, typeof tasks>()
-  for (const task of tasks) {
-    const columnId = task.columnId ?? ''
-    const list = tasksByColumn.get(columnId) ?? []
-    list.push(task)
-    tasksByColumn.set(columnId, list)
-  }
+  // Regrouped only when the task list itself changes, not on every render.
+  const tasksByColumn = useMemo(() => groupTasksByColumn(tasks), [tasks])
+  const tiles = useMemo(() => tilesFromTasks(tasks), [tasks])
 
-  const handleDrop = (event: DragEvent, index: number | null): void => {
-    event.preventDefault()
-    if (draggingId) {
-      moveMutation.mutate({ columnId: draggingId, toPosition: index ?? columns.length - 1 })
-    }
+  // Stable handlers, so memoized columns and cards skip renders they don't need.
+  const handleDrop = useCallback(
+    (event: DragEvent, index: number | null): void => {
+      event.preventDefault()
+      if (draggingId) {
+        moveColumn({ columnId: draggingId, toPosition: index ?? columns.length - 1 })
+      }
+      setDraggingId(null)
+      setDropIndex(null)
+    },
+    [draggingId, columns.length, moveColumn],
+  )
+  const handleColumnDragStart = useCallback((columnId: string, event: DragEvent) => {
+    setDraggingId(columnId)
+    event.dataTransfer.effectAllowed = 'move'
+  }, [])
+  const handleColumnDragEnd = useCallback(() => {
     setDraggingId(null)
     setDropIndex(null)
-  }
+  }, [])
+  const handleColumnDragOver = useCallback(
+    (columnId: string, index: number) => {
+      if (draggingTaskId !== null) {
+        setTaskDropColumn(columnId)
+      } else {
+        setDropIndex(index)
+      }
+    },
+    [draggingTaskId],
+  )
+  const handleColumnDrop = useCallback(
+    (columnId: string, index: number, event: DragEvent) => {
+      if (draggingTaskId) {
+        const draggedTask = tasks.find((task) => task.id === draggingTaskId)
+        if (draggedTask && draggedTask.columnId !== columnId) {
+          moveTask({ taskId: draggingTaskId, columnId })
+        }
+        setDraggingTaskId(null)
+        setTaskDropColumn(null)
+      } else {
+        handleDrop(event, index)
+      }
+    },
+    [draggingTaskId, tasks, moveTask, handleDrop],
+  )
+  const handleRenameColumn = useCallback(
+    (columnId: string, name: string) => renameColumn({ columnId, name }),
+    [renameColumn],
+  )
+  const handleCancelRename = useCallback(() => setEditingNameId(null), [])
+  const handleOpenTask = useCallback(
+    (taskId: string) => navigate(`/app/tasks/${taskId}`),
+    [navigate],
+  )
+  const handleTaskDragStart = useCallback((taskId: string, event: DragEvent) => {
+    setDraggingTaskId(taskId)
+    event.dataTransfer.effectAllowed = 'move'
+  }, [])
+  const handleTaskDragEnd = useCallback(() => {
+    setDraggingTaskId(null)
+    setTaskDropColumn(null)
+  }, [])
+  const handleMoveTask = useCallback(
+    (taskId: string, columnId: string) => moveTask({ taskId, columnId }),
+    [moveTask],
+  )
 
   if (boardQuery.isPending) {
     return (
-      <div className="mx-auto w-full max-w-6xl p-6">
-        <Skeleton className="h-10 w-2/3" />
-        <Skeleton className="mt-4 h-72 w-full" />
-      </div>
+      <PageContainer width="full">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="mt-3 h-4 w-96" />
+        <div className="mt-8 flex gap-3">
+          {[0, 1, 2].map((key) => (
+            <Skeleton key={key} className="h-80 w-72 shrink-0" />
+          ))}
+        </div>
+      </PageContainer>
     )
   }
 
   if (boardQuery.isError || !board) {
     return (
-      <div className="mx-auto w-full max-w-6xl p-6">
-        <Card>
-          <CardHeader className="items-center text-center">
-            <CardTitle>{t('org.permissionDenied')}</CardTitle>
-            <CardDescription>
-              <Button variant="link" onClick={() => navigate('/app/projects')}>
-                {t('projects.backToProjects')}
-              </Button>
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
+      <PageContainer width="narrow">
+        <EmptyState
+          title={t('org.permissionDenied')}
+          action={
+            <Button variant="outline" onClick={() => navigate('/app/projects')}>
+              {t('projects.backToProjects')}
+            </Button>
+          }
+        />
+      </PageContainer>
     )
   }
 
-  return (
-    <div className="mx-auto w-full max-w-6xl p-6">
-      <div className="flex flex-col gap-6">
-        <Button
-          variant="ghost"
-          className="self-start"
-          onClick={() => navigate(`/app/projects/${board.projectId}`)}
-        >
-          <ArrowLeftIcon />
-          {t('boards.backToProject')}
-        </Button>
+  const doneCount = tiles.filter((tile) => tile.state === 'done').length
+  const overdueCount = tiles.filter((tile) => tile.state === 'overdue').length
 
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-semibold tracking-tight">{board.name}</h1>
-              <Badge variant="outline" title={t('boards.realtimePresence')}>
-                <RadioIcon className="size-3" />
-                {t('boards.onlineCount', { count: onlineUserIds.length })}
-              </Badge>
-              {board.isArchived && <Badge>{t('projects.archived')}</Badge>}
+  return (
+    <PageContainer width="full">
+      <PageHeader
+        leading={
+          <Button
+            variant="link"
+            size="sm"
+            className="h-auto gap-1 px-0 text-muted-foreground hover:text-foreground"
+            onClick={() => navigate(`/app/projects/${board.projectId}`)}
+          >
+            <ArrowLeftIcon className="size-3.5" />
+            {projectName ?? t('boards.backToProject')}
+          </Button>
+        }
+        title={board.name}
+        meta={
+          <>
+            <span
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
+              title={t('boards.realtimePresence')}
+            >
+              <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
+              {t('boards.onlineCount', { count: onlineUserIds.length })}
+            </span>
+            {board.isArchived && <Badge variant="warning">{t('projects.archived')}</Badge>}
+          </>
+        }
+        description={board.description || t('boards.subtitle')}
+        actions={
+          <>
+            <div
+              role="group"
+              aria-label={t('boards.viewMode')}
+              className="inline-flex h-9 items-center gap-1 rounded-md border bg-muted p-[3px]"
+            >
+              {(
+                [
+                  ['kanban', Columns3Icon, t('boards.viewKanban')],
+                  ['list', ListIcon, t('boards.viewList')],
+                ] as const
+              ).map(([mode, Icon, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  aria-pressed={viewMode === mode}
+                  onClick={() => setViewMode(mode)}
+                  className={cn(
+                    'inline-flex h-full items-center gap-1.5 rounded-sm border border-transparent px-2.5 text-sm font-medium transition-colors duration-150 [&_svg]:size-4',
+                    viewMode === mode
+                      ? 'border-border bg-card text-foreground'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <Icon aria-hidden="true" />
+                  {label}
+                </button>
+              ))}
             </div>
-            <p className="text-muted-foreground text-sm">
-              {board.description || t('boards.subtitle')}
-            </p>
+            <Button
+              variant="outline"
+              onClick={() => {
+                editForm.reset({ name: board.name, description: board.description ?? '' })
+                setEditOpen(true)
+              }}
+            >
+              <PencilIcon />
+              <span className="sr-only sm:not-sr-only">{t('boards.edit')}</span>
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label={t('boards.moreActions')}>
+                  <MoreHorizontalIcon />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem
+                  disabled={archiveMutation.isPending}
+                  onSelect={() => archiveMutation.mutate(!board.isArchived)}
+                >
+                  <ArchiveIcon />
+                  {board.isArchived ? t('boards.unarchive') : t('boards.archive')}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem variant="destructive" onSelect={() => setDeleteOpen(true)}>
+                  <Trash2Icon />
+                  {t('boards.delete')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        }
+      />
+
+      {tiles.length > 0 && (
+        <div className="-mt-3 mb-6 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <TilePanel
+            tiles={tiles}
+            columns={40}
+            max={80}
+            size={12}
+            label={t('boards.progressLabel', {
+              done: String(doneCount),
+              total: String(tiles.length),
+              overdue: String(overdueCount),
+            })}
+          />
+          <p className="text-xs text-muted-foreground tabular-nums" aria-hidden="true">
+            {t('boards.progress', { done: String(doneCount), total: String(tiles.length) })}
+            {overdueCount > 0 && (
+              <span className="ml-2 font-medium text-ochre-ink">
+                {t('boards.progressOverdue', { count: overdueCount })}
+              </span>
+            )}
+          </p>
+        </div>
+      )}
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('boards.edit')}</DialogTitle>
+            <DialogDescription>{t('boards.createDescription')}</DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={editForm.handleSubmit((values) => updateMutation.mutate(values))}
+            className="flex flex-col gap-4"
+          >
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="board-name">{t('boards.name')}</Label>
+              <Input id="board-name" {...editForm.register('name')} />
+              {editForm.formState.errors.name && (
+                <p className="text-xs text-destructive">{editForm.formState.errors.name.message}</p>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="board-description">{t('boards.description')}</Label>
+              <Input id="board-description" {...editForm.register('description')} />
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={updateMutation.isPending}>
+                {t('boards.save')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('boards.delete')}</DialogTitle>
+            <DialogDescription>{t('boards.deleteConfirm')}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteMutation.mutate()}
+              disabled={deleteMutation.isPending}
+            >
+              {t('boards.delete')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <div className="mb-5">
+        <TaskBoardFilters boardId={boardId} filters={taskFilters} onChange={setTaskFilters} />
+      </div>
+
+      {viewMode === 'kanban' ? (
+        columnsQuery.isPending ? (
+          <div className="flex gap-3">
+            {[0, 1, 2].map((key) => (
+              <Skeleton key={key} className="h-80 w-72 shrink-0" />
+            ))}
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        ) : (
+          <div
+            className="-mx-4 flex items-start gap-3 overflow-x-auto pr-16 pb-6 pl-4 [mask-image:linear-gradient(to_right,black_calc(100%-3rem),transparent)] sm:-mx-6 sm:pl-6 lg:-mx-8 lg:pl-8"
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => handleDrop(event, null)}
+          >
+            {columns.map((column, index) => (
+              <BoardColumn
+                key={column.id}
+                column={column}
+                index={index}
+                columns={columns}
+                tasks={tasksByColumn.get(column.id)}
+                isLoadingTasks={tasksQuery.isPending}
+                isFiltering={isFiltering}
+                isEditingName={editingNameId === column.id}
+                canDrag={draggingTaskId === null && editingNameId !== column.id}
+                isBeingDragged={draggingId === column.id}
+                isColumnTarget={
+                  dropIndex === index && draggingId !== column.id && draggingTaskId === null
+                }
+                isTaskTarget={taskDropColumn === column.id && draggingTaskId !== null}
+                draggingTaskId={draggingTaskId}
+                onColumnDragStart={handleColumnDragStart}
+                onColumnDragEnd={handleColumnDragEnd}
+                onColumnDragOver={handleColumnDragOver}
+                onColumnDrop={handleColumnDrop}
+                onStartRename={setEditingNameId}
+                onCancelRename={handleCancelRename}
+                onRename={handleRenameColumn}
+                onDelete={deleteColumn}
+                onAddTask={setAddTaskForColumn}
+                onOpenTask={handleOpenTask}
+                onTaskDragStart={handleTaskDragStart}
+                onTaskDragEnd={handleTaskDragEnd}
+                onMoveTask={handleMoveTask}
+              />
+            ))}
+
+            <Dialog open={addColumnOpen} onOpenChange={setAddColumnOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline">
-                  <PencilIcon />
-                  {t('boards.edit')}
+                <Button
+                  variant="ghost"
+                  className="h-11 w-72 shrink-0 justify-start border border-dashed text-muted-foreground hover:text-foreground"
+                >
+                  <PlusIcon />
+                  {t('boards.addColumn')}
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                  <DialogTitle>{t('boards.edit')}</DialogTitle>
+                  <DialogTitle>{t('boards.addColumn')}</DialogTitle>
                   <DialogDescription>{t('boards.createDescription')}</DialogDescription>
                 </DialogHeader>
                 <form
-                  onSubmit={editForm.handleSubmit((values) => updateMutation.mutate(values))}
+                  onSubmit={addColumnForm.handleSubmit((values) =>
+                    addColumnMutation.mutate(values),
+                  )}
                   className="flex flex-col gap-4"
                 >
                   <div className="flex flex-col gap-2">
-                    <Label htmlFor="board-name">{t('boards.name')}</Label>
-                    <Input id="board-name" {...editForm.register('name')} />
-                    {editForm.formState.errors.name && (
-                      <p className="text-destructive text-xs">
-                        {editForm.formState.errors.name.message}
+                    <Label htmlFor="column-name">{t('boards.columnName')}</Label>
+                    <Input
+                      id="column-name"
+                      autoFocus
+                      placeholder={t('boards.columnNamePlaceholder')}
+                      {...addColumnForm.register('name')}
+                    />
+                    {addColumnForm.formState.errors.name && (
+                      <p className="text-xs text-destructive">
+                        {addColumnForm.formState.errors.name.message}
                       </p>
                     )}
                   </div>
                   <div className="flex flex-col gap-2">
-                    <Label htmlFor="board-description">{t('boards.description')}</Label>
-                    <Input id="board-description" {...editForm.register('description')} />
+                    <Label htmlFor="column-wip">{t('boards.wipLimit')}</Label>
+                    <Input
+                      id="column-wip"
+                      type="number"
+                      min={0}
+                      className="w-28"
+                      {...addColumnForm.register('wipLimit', { valueAsNumber: true })}
+                    />
+                    <p className="text-xs text-muted-foreground">{t('boards.wipLimitHint')}</p>
                   </div>
-                  <Button type="submit" disabled={updateMutation.isPending} className="self-start">
-                    {t('boards.save')}
-                  </Button>
+                  <div className="flex flex-col gap-2">
+                    <Label id="column-color-label">{t('projects.color')}</Label>
+                    <ColorSwatchPicker
+                      labelledBy="column-color-label"
+                      colors={COLUMN_COLORS}
+                      value={addColumnForm.watch('color') ?? COLUMN_COLORS[0] ?? ''}
+                      onChange={(color) => addColumnForm.setValue('color', color)}
+                    />
+                  </div>
+                  <DialogFooter>
+                    <Button type="submit" disabled={addColumnMutation.isPending}>
+                      {t('boards.addColumn')}
+                    </Button>
+                  </DialogFooter>
                 </form>
               </DialogContent>
             </Dialog>
-            <Button
-              variant="outline"
-              onClick={() => archiveMutation.mutate(!board.isArchived)}
-              disabled={archiveMutation.isPending}
-            >
-              <ArchiveIcon />
-              {board.isArchived ? t('boards.unarchive') : t('boards.archive')}
-            </Button>
-            <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-              <DialogTrigger asChild>
-                <Button variant="destructive">
-                  <Trash2Icon />
-                  {t('boards.delete')}
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>{t('boards.delete')}</DialogTitle>
-                  <DialogDescription>{t('boards.deleteConfirm')}</DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setDeleteOpen(false)}>
-                    {t('common.cancel')}
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={() => deleteMutation.mutate()}
-                    disabled={deleteMutation.isPending}
-                  >
-                    {t('boards.delete')}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
           </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <div
-            className="inline-flex rounded-lg border bg-muted/40 p-0.5"
-            role="tablist"
-            aria-label={t('boards.viewMode')}
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={viewMode === 'kanban'}
-              onClick={() => setViewMode('kanban')}
-              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                viewMode === 'kanban'
-                  ? 'bg-background shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Columns3Icon className="size-4" />
-              {t('boards.viewKanban')}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={viewMode === 'list'}
-              onClick={() => setViewMode('list')}
-              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                viewMode === 'list'
-                  ? 'bg-background shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <ListIcon className="size-4" />
-              {t('boards.viewList')}
-            </button>
-          </div>
-        </div>
-
-        <TaskBoardFilters boardId={boardId} filters={taskFilters} onChange={setTaskFilters} />
-
-        {viewMode === 'kanban' && (
-          <div className="text-muted-foreground flex items-center gap-2 text-xs">
-            <GripVerticalIcon className="size-3.5" />
-            {t('boards.dragHint')}
-          </div>
-        )}
-
-        {viewMode === 'kanban' ? (
-          columnsQuery.isPending ? (
-            <Skeleton className="h-72 w-full" />
-          ) : (
-            <div
-              className="flex items-start gap-4 overflow-x-auto pb-4"
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => handleDrop(event, null)}
-            >
-              {columns.map((column, index) => {
-                const overLimit = column.wipLimit !== null && column.taskCount > column.wipLimit
-                const columnTasks = tasksByColumn.get(column.id) ?? []
-                return (
-                  <div
-                    key={column.id}
-                    draggable={draggingTaskId === null}
-                    onDragStart={(event) => {
-                      setDraggingId(column.id)
-                      event.dataTransfer.effectAllowed = 'move'
-                    }}
-                    onDragEnd={() => {
-                      setDraggingId(null)
-                      setDropIndex(null)
-                    }}
-                    onDragOver={(event) => {
-                      event.preventDefault()
-                      if (draggingTaskId !== null) {
-                        setTaskDropColumn(column.id)
-                      } else {
-                        setDropIndex(index)
-                      }
-                    }}
-                    onDrop={(event) => {
-                      event.preventDefault()
-                      if (draggingTaskId) {
-                        if (draggingTaskId !== null && column.id !== taskDropColumn) {
-                          moveTaskMutation.mutate({ taskId: draggingTaskId, columnId: column.id })
-                        }
-                        setDraggingTaskId(null)
-                        setTaskDropColumn(null)
-                      } else {
-                        handleDrop(event, index)
-                      }
-                    }}
-                    className={`flex w-72 shrink-0 flex-col gap-2 rounded-lg border bg-card p-3 shadow-sm transition-shadow ${
-                      draggingId === column.id ? 'opacity-50' : ''
-                    } ${
-                      dropIndex === index && draggingId !== column.id && draggingTaskId === null
-                        ? 'ring-2 ring-primary'
-                        : ''
-                    } ${
-                      taskDropColumn === column.id && draggingTaskId !== null
-                        ? 'bg-primary/5 ring-2 ring-primary'
-                        : ''
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <GripVerticalIcon className="text-muted-foreground size-4 cursor-grab" />
-                      {editingNameId === column.id ? (
-                        <form
-                          className="flex-1"
-                          onSubmit={(event) => {
-                            event.preventDefault()
-                            const input = event.currentTarget.elements.namedItem(
-                              'name',
-                            ) as HTMLInputElement
-                            renameMutation.mutate({ columnId: column.id, name: input.value.trim() })
-                          }}
-                        >
-                          <Input name="name" autoFocus defaultValue={column.name} className="h-8" />
-                        </form>
-                      ) : (
-                        <button
-                          type="button"
-                          className="min-w-0 flex-1 truncate text-left text-sm font-semibold"
-                          onDoubleClick={() => setEditingNameId(column.id)}
-                          title={column.name}
-                        >
-                          {column.name}
-                        </button>
-                      )}
-                      <Badge
-                        variant="secondary"
-                        className={overLimit ? 'bg-destructive text-destructive-foreground' : ''}
-                      >
-                        {isFiltering
-                          ? `${columnTasks.length}/${column.taskCount}`
-                          : column.taskCount}
-                        {column.wipLimit !== null && `/${column.wipLimit}`}
-                      </Badge>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-7"
-                        aria-label={t('boards.deleteColumn')}
-                        onClick={() => deleteColumnMutation.mutate(column.id)}
-                      >
-                        <Trash2Icon className="size-3.5" />
-                      </Button>
-                    </div>
-                    {column.wipLimit !== null && (
-                      <p
-                        className={`text-xs ${overLimit ? 'text-destructive' : 'text-muted-foreground'}`}
-                      >
-                        {overLimit
-                          ? t('boards.overLimit')
-                          : t('boards.maxTasks', { count: column.wipLimit })}
-                      </p>
-                    )}
-
-                    {tasksQuery.isPending ? (
-                      <Skeleton className="h-16 w-full" />
-                    ) : (
-                      <ul className="flex flex-col gap-2">
-                        {columnTasks.map((task) => (
-                          <li key={task.id}>
-                            <TaskCard
-                              task={task}
-                              onOpen={() => navigate(`/app/tasks/${task.id}`)}
-                              onDragStart={(event) => {
-                                setDraggingTaskId(task.id)
-                                event.dataTransfer.effectAllowed = 'move'
-                              }}
-                              onDragEnd={() => {
-                                setDraggingTaskId(null)
-                                setTaskDropColumn(null)
-                              }}
-                            />
-                          </li>
-                        ))}
-                        {columnTasks.length === 0 && !tasksQuery.isPending && (
-                          <li className="text-muted-foreground py-2 text-center text-xs">
-                            {t('tasks.empty')}
-                          </li>
-                        )}
-                      </ul>
-                    )}
-
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="mt-1 self-start"
-                      onClick={() => setAddTaskForColumn(column.id)}
-                    >
-                      <PlusIcon className="size-3.5" />
-                      {t('tasks.addTask')}
-                    </Button>
-                  </div>
-                )
-              })}
-
-              <Dialog open={addColumnOpen} onOpenChange={setAddColumnOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="h-16 w-72 shrink-0 border-dashed">
-                    <PlusIcon />
-                    {t('boards.addColumn')}
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>{t('boards.addColumn')}</DialogTitle>
-                    <DialogDescription>{t('boards.createDescription')}</DialogDescription>
-                  </DialogHeader>
-                  <form
-                    onSubmit={addColumnForm.handleSubmit((values) =>
-                      addColumnMutation.mutate(values),
-                    )}
-                    className="flex flex-col gap-4"
-                  >
-                    <div className="flex flex-col gap-2">
-                      <Label htmlFor="column-name">{t('boards.columnName')}</Label>
-                      <Input
-                        id="column-name"
-                        autoFocus
-                        placeholder={t('boards.columnNamePlaceholder')}
-                        {...addColumnForm.register('name')}
-                      />
-                      {addColumnForm.formState.errors.name && (
-                        <p className="text-destructive text-xs">
-                          {addColumnForm.formState.errors.name.message}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Label htmlFor="column-wip">{t('boards.wipLimit')}</Label>
-                      <Input
-                        id="column-wip"
-                        type="number"
-                        min={0}
-                        placeholder="—"
-                        {...addColumnForm.register('wipLimit', { valueAsNumber: true })}
-                      />
-                      <p className="text-muted-foreground text-xs">{t('boards.wipLimitHint')}</p>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Label>{t('projects.color')}</Label>
-                      <div className="flex gap-2">
-                        {COLUMN_COLORS.map((color) => (
-                          <button
-                            key={color}
-                            type="button"
-                            aria-label={color}
-                            onClick={() => addColumnForm.setValue('color', color)}
-                            className={`size-6 rounded-full transition-transform ${
-                              addColumnForm.watch('color') === color
-                                ? 'ring-ring ring-2 ring-offset-2'
-                                : 'hover:scale-110'
-                            }`}
-                            style={{ backgroundColor: color }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                    <Button
-                      type="submit"
-                      disabled={addColumnMutation.isPending}
-                      className="self-start"
-                    >
-                      {t('boards.addColumn')}
-                    </Button>
-                  </form>
-                </DialogContent>
-              </Dialog>
-
-              <Dialog
-                open={addTaskForColumn !== null}
-                onOpenChange={(open) => {
-                  if (!open) setAddTaskForColumn(null)
-                }}
-              >
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>{t('tasks.addTask')}</DialogTitle>
-                    <DialogDescription>{t('tasks.createDescription')}</DialogDescription>
-                  </DialogHeader>
-                  <form
-                    onSubmit={addTaskForm.handleSubmit((values) => {
-                      const columnId = addTaskForColumn
-                      if (!columnId) return
-                      addTaskMutation.mutate({ ...values, columnId })
-                    })}
-                    className="flex flex-col gap-4"
-                  >
-                    <div className="flex flex-col gap-2">
-                      <Label htmlFor="task-title">{t('tasks.taskTitle')}</Label>
-                      <Input
-                        id="task-title"
-                        autoFocus
-                        placeholder={t('tasks.taskTitlePlaceholder')}
-                        {...addTaskForm.register('title')}
-                      />
-                      {addTaskForm.formState.errors.title && (
-                        <p className="text-destructive text-xs">
-                          {addTaskForm.formState.errors.title.message}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Label htmlFor="task-desc">{t('tasks.description')}</Label>
-                      <Textarea
-                        id="task-desc"
-                        placeholder={t('tasks.descriptionPlaceholder')}
-                        {...addTaskForm.register('description')}
-                      />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Label htmlFor="task-priority">{t('tasks.priority')}</Label>
-                      <Select
-                        value={addTaskForm.watch('priority')}
-                        onValueChange={(value) => addTaskForm.setValue('priority', value as never)}
-                      >
-                        <SelectTrigger id="task-priority">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(['NONE', 'LOW', 'MEDIUM', 'HIGH', 'URGENT'] as const).map(
-                            (priority) => (
-                              <SelectItem key={priority} value={priority}>
-                                {t(`tasks.priority${priority}`)}
-                              </SelectItem>
-                            ),
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button
-                      type="submit"
-                      disabled={addTaskMutation.isPending}
-                      className="self-start"
-                    >
-                      {t('tasks.addTask')}
-                    </Button>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </div>
-          )
-        ) : (
-          <BoardListView
-            columns={columns.map((column) => ({
-              id: column.id,
-              name: column.name,
-              color: column.color,
-              taskCount: column.taskCount,
-            }))}
-            tasks={tasks}
-            onOpenTask={(taskId) => navigate(`/app/tasks/${taskId}`)}
-          />
-        )}
-      </div>
-    </div>
-  )
-}
-
-interface TaskCardProps {
-  task: {
-    id: string
-    title: string
-    priority: string
-    isCompleted: boolean
-    dueDate: string | null
-    labels: Array<{ id: string; labelId: string; name: string; color: string }>
-    assignees: Array<{ id: string; userId: string; fullName: string; avatarKey: string | null }>
-  }
-  onOpen: () => void
-  onDragStart: (event: DragEvent) => void
-  onDragEnd: () => void
-}
-
-function TaskCard({ task, onOpen, onDragStart, onDragEnd }: TaskCardProps): ReactNode {
-  const { i18n } = useTranslation()
-
-  return (
-    <button
-      type="button"
-      draggable
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-      onClick={onOpen}
-      className="flex w-full cursor-pointer flex-col gap-2 rounded-md border bg-background p-2.5 text-left shadow-sm transition-colors hover:border-primary/40"
-    >
-      <div className="flex items-start gap-2">
-        <CircleIcon
-          className="mt-0.5 size-3 shrink-0"
-          style={{ color: PRIORITY_COLORS[task.priority] ?? '#94a3b8' }}
-          fill={task.isCompleted ? 'currentColor' : 'none'}
+        )
+      ) : (
+        <BoardListView
+          columns={columns.map((column) => ({
+            id: column.id,
+            name: column.name,
+            color: column.color,
+            taskCount: column.taskCount,
+          }))}
+          tasks={tasks}
+          onOpenTask={(taskId) => navigate(`/app/tasks/${taskId}`)}
         />
-        <span
-          className={`min-w-0 flex-1 text-sm font-medium ${task.isCompleted ? 'text-muted-foreground line-through' : ''}`}
-        >
-          {task.title}
-        </span>
-      </div>
-      {task.labels.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {task.labels.map((label) => (
-            <span
-              key={label.id}
-              className="rounded-full px-1.5 py-0.5 text-[10px]"
-              style={{
-                backgroundColor: label.color,
-                color: getContrastTextColor(label.color),
-              }}
-            >
-              {label.name}
-            </span>
-          ))}
-        </div>
       )}
-      <div className="flex items-center justify-between gap-2">
-        {task.dueDate ? (
-          <span className="text-muted-foreground flex items-center gap-1 text-[10px]">
-            <CalendarIcon className="size-3" />
-            {formatDate(task.dueDate, i18n.resolvedLanguage ?? i18n.language)}
-          </span>
-        ) : (
-          <span />
-        )}
-        {task.assignees.length > 0 && (
-          <div className="flex -space-x-1.5">
-            {task.assignees.slice(0, 3).map((assignee) => (
-              <Avatar key={assignee.id} className="size-5 ring-2 ring-background">
-                <SecureAvatarImage
-                  userId={assignee.userId}
-                  avatarKey={assignee.avatarKey}
-                  alt={assignee.fullName}
-                />
-                <AvatarFallback className="text-[8px]">
-                  {initialsOf(assignee.fullName)}
-                </AvatarFallback>
-              </Avatar>
-            ))}
-          </div>
-        )}
-      </div>
-    </button>
+
+      <Dialog
+        open={addTaskForColumn !== null}
+        onOpenChange={(open) => {
+          if (!open) setAddTaskForColumn(null)
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('tasks.addTask')}</DialogTitle>
+            <DialogDescription>{t('tasks.createDescription')}</DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={addTaskForm.handleSubmit((values) => {
+              const columnId = addTaskForColumn
+              if (!columnId) return
+              addTaskMutation.mutate({ ...values, columnId })
+            })}
+            className="flex flex-col gap-4"
+          >
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="task-title">{t('tasks.taskTitle')}</Label>
+              <Input
+                id="task-title"
+                autoFocus
+                placeholder={t('tasks.taskTitlePlaceholder')}
+                {...addTaskForm.register('title')}
+              />
+              {addTaskForm.formState.errors.title && (
+                <p className="text-xs text-destructive">
+                  {addTaskForm.formState.errors.title.message}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="task-desc">{t('tasks.description')}</Label>
+              <Textarea
+                id="task-desc"
+                placeholder={t('tasks.descriptionPlaceholder')}
+                {...addTaskForm.register('description')}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="task-priority">{t('tasks.priority')}</Label>
+              <Select
+                value={addTaskForm.watch('priority')}
+                onValueChange={(value) => addTaskForm.setValue('priority', value as never)}
+              >
+                <SelectTrigger id="task-priority" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(['NONE', 'LOW', 'MEDIUM', 'HIGH', 'URGENT'] as const).map((priority) => (
+                    <SelectItem key={priority} value={priority}>
+                      <PriorityMark priority={priority} showLabel />
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={addTaskMutation.isPending}>
+                {t('tasks.addTask')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </PageContainer>
   )
 }

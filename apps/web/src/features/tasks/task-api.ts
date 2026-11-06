@@ -13,6 +13,7 @@ import type {
   MoveChecklistItemDto,
   TaskActivityDto,
   TaskDto,
+  TaskListItemDto,
   TaskQuery,
   SavedFilterDto,
   TimeEntryDto,
@@ -28,8 +29,13 @@ import type {
 import { api, apiBlobRequest } from '@/lib/api'
 
 export interface TaskListResult {
-  rows: TaskDto[]
+  rows: TaskListItemDto[]
   total: number
+}
+
+/** Open top-level tasks assigned to the signed-in user, soonest deadline first. */
+export function listMyTasksRequest(orgSlug: string, limit = 100): Promise<TaskListResult> {
+  return api.get<TaskListResult>(`/organizations/${orgSlug}/my-tasks?limit=${limit}`)
 }
 
 export function listProjectTasksRequest(
@@ -42,6 +48,7 @@ export function listProjectTasksRequest(
   if (query?.priority) params.set('priority', query.priority)
   if (query?.search) params.set('search', query.search)
   if (query?.archived !== undefined) params.set('archived', String(query.archived))
+  if (query?.pageSize) params.set('pageSize', String(query.pageSize))
   const suffix = params.size === 0 ? '' : `?${params.toString()}`
   return api.get<TaskListResult>(`/projects/${projectId}/tasks${suffix}`)
 }
@@ -56,8 +63,35 @@ export function listBoardTasksRequest(
   if (query?.priority) params.set('priority', query.priority)
   if (query?.search) params.set('search', query.search)
   if (query?.archived !== undefined) params.set('archived', String(query.archived))
+  if (query?.page) params.set('page', String(query.page))
+  if (query?.pageSize) params.set('pageSize', String(query.pageSize))
   const suffix = params.size === 0 ? '' : `?${params.toString()}`
   return api.get<TaskListResult>(`/boards/${boardId}/tasks${suffix}`)
+}
+
+const BOARD_PAGE_SIZE = 100
+
+/**
+ * Every task on a board. The API pages at 100, so the first page tells us the
+ * total and the remaining pages load in parallel.
+ */
+export async function listAllBoardTasksRequest(
+  boardId: string,
+  query?: Partial<TaskQuery>,
+): Promise<TaskListResult> {
+  const first = await listBoardTasksRequest(boardId, {
+    ...query,
+    page: 1,
+    pageSize: BOARD_PAGE_SIZE,
+  })
+  const pages = Math.ceil(first.total / BOARD_PAGE_SIZE)
+  if (pages <= 1) return first
+  const rest = await Promise.all(
+    Array.from({ length: pages - 1 }, (_, index) =>
+      listBoardTasksRequest(boardId, { ...query, page: index + 2, pageSize: BOARD_PAGE_SIZE }),
+    ),
+  )
+  return { ...first, rows: [first, ...rest].flatMap((page) => page.rows) }
 }
 
 export function createTaskRequest(projectId: string, input: CreateTaskDto): Promise<TaskDto> {

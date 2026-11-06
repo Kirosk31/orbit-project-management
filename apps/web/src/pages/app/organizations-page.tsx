@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { acceptInvitationSchema, createOrganizationSchema } from '@orbit/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Building2Icon, PlusIcon, TicketIcon, UsersIcon } from 'lucide-react'
+import { PlusIcon, TicketIcon, UsersIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { useForm } from 'react-hook-form'
@@ -10,13 +10,15 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import type { z } from 'zod'
 
+import { EmptyState, PageContainer, PageHeader } from '@/components/shared/page'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -30,10 +32,10 @@ import {
   createOrganizationRequest,
   listOrganizationsRequest,
 } from '@/features/organizations/org-api'
-import { formatDate } from '@/lib/utils'
+import { initialsOf } from '@/lib/utils'
 
 export function OrganizationsPage(): ReactNode {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const queryClient = useQueryClient()
@@ -98,15 +100,13 @@ export function OrganizationsPage(): ReactNode {
   }, [acceptForm, invitationToken, searchParams, setSearchParams])
 
   return (
-    <div className="mx-auto w-full max-w-3xl p-6">
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{t('org.title')}</h1>
-            <p className="text-muted-foreground text-sm">{t('org.subtitle')}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => setAcceptOpen(true)}>
+    <PageContainer width="narrow">
+      <PageHeader
+        title={t('org.title')}
+        description={t('org.subtitle')}
+        actions={
+          <>
+            <Button variant="ghost" onClick={() => setAcceptOpen(true)}>
               <TicketIcon />
               {t('org.acceptInvitation')}
             </Button>
@@ -149,100 +149,88 @@ export function OrganizationsPage(): ReactNode {
                       {...createForm.register('description')}
                     />
                   </div>
-                  <Button type="submit" disabled={createMutation.isPending} className="self-start">
-                    {createMutation.isPending ? t('org.creating') : t('org.create')}
-                  </Button>
+                  <DialogFooter>
+                    <Button type="submit" disabled={createMutation.isPending}>
+                      {createMutation.isPending ? t('org.creating') : t('org.create')}
+                    </Button>
+                  </DialogFooter>
                 </form>
               </DialogContent>
             </Dialog>
-          </div>
-        </div>
+          </>
+        }
+      />
 
-        <Dialog open={acceptOpen} onOpenChange={setAcceptOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>{t('org.acceptInvitation')}</DialogTitle>
-              <DialogDescription>{t('org.acceptDescription')}</DialogDescription>
-            </DialogHeader>
-            <form
-              onSubmit={acceptForm.handleSubmit((values) => acceptMutation.mutate(values))}
-              className="flex flex-col gap-4"
-            >
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="invitation-token">{t('org.invitationToken')}</Label>
-                <Input
-                  id="invitation-token"
-                  autoFocus
-                  autoComplete="off"
-                  aria-invalid={acceptForm.formState.errors.token ? true : undefined}
-                  placeholder={t('org.acceptTokenPlaceholder')}
-                  {...acceptForm.register('token')}
-                />
-                {acceptForm.formState.errors.token && (
-                  <p className="text-destructive text-xs">
-                    {acceptForm.formState.errors.token.message}
-                  </p>
-                )}
-              </div>
-              <Button type="submit" disabled={acceptMutation.isPending} className="self-start">
+      <Dialog open={acceptOpen} onOpenChange={setAcceptOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('org.acceptInvitation')}</DialogTitle>
+            <DialogDescription>{t('org.acceptDescription')}</DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={acceptForm.handleSubmit((values) => acceptMutation.mutate(values))}
+            className="flex flex-col gap-4"
+          >
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="invitation-token">{t('org.invitationToken')}</Label>
+              <Input
+                id="invitation-token"
+                autoFocus
+                autoComplete="off"
+                aria-invalid={acceptForm.formState.errors.token ? true : undefined}
+                placeholder={t('org.acceptTokenPlaceholder')}
+                {...acceptForm.register('token')}
+              />
+              {acceptForm.formState.errors.token && (
+                <p className="text-destructive text-xs">
+                  {acceptForm.formState.errors.token.message}
+                </p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={acceptMutation.isPending}>
                 {acceptMutation.isPending ? t('common.loading') : t('org.acceptButton')}
               </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-        {orgsQuery.isPending ? (
-          <div className="flex flex-col gap-4">
-            <Skeleton className="h-28 w-full" />
-            <Skeleton className="h-28 w-full" />
-          </div>
-        ) : orgsQuery.data && orgsQuery.data.length > 0 ? (
-          <div className="flex flex-col gap-4">
-            {orgsQuery.data.map((org) => (
+      {orgsQuery.isPending ? (
+        <Skeleton className="h-40 w-full" />
+      ) : orgsQuery.data && orgsQuery.data.length > 0 ? (
+        <ul className="divide-y overflow-hidden rounded-lg border bg-card">
+          {orgsQuery.data.map((org) => (
+            <li key={org.id}>
               <Link
-                key={org.id}
                 to={`/app/organizations/${org.slug}`}
-                className="focus-visible:ring-ring rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                className="flex items-center gap-4 px-4 py-3.5 transition-colors duration-150 hover:bg-accent/60"
               >
-                <Card className="hover:bg-accent/50 h-full cursor-pointer transition-colors">
-                  <CardHeader>
-                    <div className="flex items-start gap-4">
-                      <div className="bg-primary/10 text-primary flex size-10 shrink-0 items-center justify-center rounded-md">
-                        <Building2Icon className="size-5" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <CardTitle className="truncate">{org.name}</CardTitle>
-                        <CardDescription className="truncate">
-                          {org.description ?? org.slug}
-                        </CardDescription>
-                      </div>
-                      <Badge variant="secondary" className="shrink-0">
-                        {org.roleKey}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-muted-foreground flex items-center gap-4 text-sm">
-                      <span className="flex items-center gap-1.5">
-                        <UsersIcon className="size-4" />
-                        {t('org.memberCount', { count: org.memberCount })}
-                      </span>
-                      <span>{formatDate(org.createdAt, i18n.language)}</span>
-                    </div>
-                  </CardContent>
-                </Card>
+                <Avatar className="size-9 rounded-md">
+                  <AvatarFallback className="rounded-md">{initialsOf(org.name)}</AvatarFallback>
+                </Avatar>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">{org.name}</span>
+                  <span className="block truncate text-sm text-muted-foreground">
+                    {org.isPersonal ? t('app.personalWorkspace') : org.description || org.slug}
+                  </span>
+                </span>
+                <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
+                  <UsersIcon className="size-3.5" aria-hidden="true" />
+                  {t('org.memberCount', { count: org.memberCount })}
+                </span>
+                {org.roleKey && (
+                  <Badge variant="secondary" className="shrink-0 capitalize">
+                    {org.roleKey}
+                  </Badge>
+                )}
               </Link>
-            ))}
-          </div>
-        ) : (
-          <Card>
-            <CardHeader className="items-center text-center">
-              <CardTitle>{t('org.empty')}</CardTitle>
-              <CardDescription>{t('org.emptyHint')}</CardDescription>
-            </CardHeader>
-          </Card>
-        )}
-      </div>
-    </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyState title={t('org.empty')} description={t('org.emptyHint')} />
+      )}
+    </PageContainer>
   )
 }

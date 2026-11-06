@@ -117,13 +117,14 @@ describeDb('users API', () => {
       })
 
     expect(uploaded.status).toBe(200)
-    expect(uploaded.body.data.avatarKey).toMatch(/^avatars\/.+\/.+\.jpg$/)
+    // Every upload is re-encoded as WebP, whatever format came in.
+    expect(uploaded.body.data.avatarKey).toMatch(/^avatars\/.+\/.+\.webp$/)
 
     const downloaded = await request(app.app)
       .get(`/api/v1/users/${userId}/avatar`)
       .set('Authorization', `Bearer ${accessToken}`)
     expect(downloaded.status).toBe(200)
-    expect(downloaded.headers['content-type']).toContain('image/jpeg')
+    expect(downloaded.headers['content-type']).toContain('image/webp')
     expect(downloaded.headers['cache-control']).toBe('private, max-age=300')
 
     const anonymous = await request(app.app).get(`/api/v1/users/${userId}/avatar`)

@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { PageContainer, PageHeader } from '@/components/shared/page'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -33,6 +34,7 @@ import {
   logoutRequest,
   resendVerificationRequest,
 } from '@/features/auth/auth-api'
+import { BrandPicker } from '@/features/theme/brand-picker'
 import { useThemeStore, type ThemePreference } from '@/features/theme/theme-store'
 import { LOCALE_OPTIONS } from '@/features/i18n/locale-options'
 import { applyLocale, getCurrentLocale, type Locale } from '@/lib/i18n'
@@ -126,7 +128,7 @@ export function ProfilePage(): ReactNode {
 
   if (!user) {
     return (
-      <div className="mx-auto w-full max-w-2xl p-6">
+      <PageContainer width="narrow">
         <div className="flex flex-col gap-4">
           <Skeleton className="h-10 w-56" />
           <Card>
@@ -137,7 +139,7 @@ export function ProfilePage(): ReactNode {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </PageContainer>
     )
   }
 
@@ -196,16 +198,13 @@ export function ProfilePage(): ReactNode {
   const preferences = preferencesQuery.data
 
   return (
-    <div className="mx-auto w-full max-w-2xl p-6">
+    <PageContainer width="narrow">
       <div className="flex flex-col gap-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t('app.profile')}</h1>
-          <p className="text-muted-foreground text-sm">{t('app.account')}</p>
-        </div>
+        <PageHeader className="mb-0" title={t('app.profile')} description={t('app.account')} />
 
         <Card>
           <CardHeader>
-            <div className="flex items-center gap-4">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
               <Avatar className="size-16">
                 <SecureAvatarImage
                   userId={user.id}
@@ -214,27 +213,24 @@ export function ProfilePage(): ReactNode {
                 />
                 <AvatarFallback className="text-lg">{initialsOf(user.fullName)}</AvatarFallback>
               </Avatar>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <CardTitle className="truncate">{user.fullName}</CardTitle>
                 <CardDescription className="truncate">{user.email}</CardDescription>
               </div>
-              <Badge
-                variant={user.isEmailVerified ? 'success' : 'warning'}
-                className="ml-auto shrink-0"
-              >
+              <Badge variant={user.isEmailVerified ? 'success' : 'warning'} className="shrink-0">
                 {user.isEmailVerified ? t('app.emailVerified') : t('app.emailNotVerified')}
               </Badge>
             </div>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            <div className="bg-muted/50 flex items-center gap-2 rounded-md px-3 py-2 text-sm">
+            <div className="flex items-center gap-2 border-b pb-3 text-sm last:border-b-0">
               <CalendarIcon className="text-muted-foreground size-4" />
               <span className="text-muted-foreground">{t('app.memberSince')}</span>
               <span className="ml-auto font-medium">
                 {formatDate(user.createdAt, i18n.language)}
               </span>
             </div>
-            <div className="bg-muted/50 flex items-center gap-2 rounded-md px-3 py-2 text-sm">
+            <div className="flex items-center gap-2 border-b pb-3 text-sm last:border-b-0">
               {user.isEmailVerified ? (
                 <ShieldCheckIcon className="text-success size-4" />
               ) : (
@@ -319,6 +315,16 @@ export function ProfilePage(): ReactNode {
 
         <Card>
           <CardHeader>
+            <CardTitle className="text-base">{t('app.brandTitle')}</CardTitle>
+            <CardDescription>{t('app.brandHint')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <BrandPicker />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle className="text-base">{t('app.preferences')}</CardTitle>
             <CardDescription>{t('app.preferencesHint')}</CardDescription>
           </CardHeader>
@@ -327,7 +333,7 @@ export function ProfilePage(): ReactNode {
               <>
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div className="flex flex-col gap-2">
-                    <Label>{t('app.themePreference')}</Label>
+                    <Label htmlFor="pref-theme">{t('app.themePreference')}</Label>
                     <Select
                       value={preferences.theme}
                       onValueChange={(theme) => {
@@ -337,7 +343,7 @@ export function ProfilePage(): ReactNode {
                         })
                       }}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger id="pref-theme">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -348,7 +354,7 @@ export function ProfilePage(): ReactNode {
                     </Select>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <Label>{t('app.languagePreference')}</Label>
+                    <Label htmlFor="pref-language">{t('app.languagePreference')}</Label>
                     <Select
                       value={preferences.locale}
                       onValueChange={(locale) => {
@@ -358,7 +364,7 @@ export function ProfilePage(): ReactNode {
                         })
                       }}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger id="pref-language">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -384,10 +390,16 @@ export function ProfilePage(): ReactNode {
                     className="flex items-center justify-between gap-4 border-b pb-4 last:border-b-0 last:pb-0"
                   >
                     <div>
-                      <p className="text-sm font-medium">{t(titleKey)}</p>
-                      <p className="text-muted-foreground text-xs">{t(hintKey)}</p>
+                      <label htmlFor={`pref-${key}`} className="text-sm font-medium">
+                        {t(titleKey)}
+                      </label>
+                      <p id={`pref-${key}-hint`} className="text-muted-foreground text-xs">
+                        {t(hintKey)}
+                      </p>
                     </div>
                     <Switch
+                      id={`pref-${key}`}
+                      aria-describedby={`pref-${key}-hint`}
                       checked={preferences[key]}
                       onCheckedChange={(checked) => {
                         queryClient.setQueryData(getUserPreferencesQueryKey(userId), {
@@ -436,16 +448,16 @@ export function ProfilePage(): ReactNode {
             {t('app.logoutAll')}
           </Button>
           <Button
-            variant="destructive"
+            variant="ghost"
+            className="text-destructive hover:bg-[color-mix(in_srgb,var(--destructive)_10%,transparent)] hover:text-destructive"
             onClick={() => void handleLogout()}
             disabled={loggingOut}
-            className="sm:ml-auto"
           >
             <LogOutIcon />
             {t('auth.logout')}
           </Button>
         </div>
       </div>
-    </div>
+    </PageContainer>
   )
 }

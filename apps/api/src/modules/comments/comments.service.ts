@@ -49,6 +49,7 @@ export class CommentsService {
     })
 
     const savedComment = await this.findComment(comment.id)
+    const actorName = savedComment.author.fullName
 
     if (dto.mentionIds.length > 0) {
       await Promise.all(
@@ -57,6 +58,7 @@ export class CommentsService {
             orgId: task.orgId,
             taskId: task.id,
             taskTitle: task.title,
+            actorName,
             userId,
           }),
         ),
@@ -74,6 +76,7 @@ export class CommentsService {
             orgId: task.orgId,
             taskId: task.id,
             taskTitle: task.title,
+            actorName,
             userId,
           }),
         ),
@@ -142,13 +145,13 @@ export class CommentsService {
   }
 
   private async verifyOrgMembers(orgId: string, userIds: string[]): Promise<void> {
-    for (const userId of userIds) {
-      const membership = await this.deps.organizations.getMembership(orgId, userId)
-      if (!membership || !membership.isActive) {
-        throw badRequest('One or more mentioned users are not members of this organization', {
-          field: 'mentionIds',
-        })
-      }
+    const unique = [...new Set(userIds)]
+    if (unique.length === 0) return
+    const active = await this.deps.organizations.countActiveMembers(orgId, unique)
+    if (active !== unique.length) {
+      throw badRequest('One or more mentioned users are not members of this organization', {
+        field: 'mentionIds',
+      })
     }
   }
 

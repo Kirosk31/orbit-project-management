@@ -8,6 +8,7 @@ import type {
   ProjectRealtimeEvent,
   TaskActivityDto,
   TaskDto,
+  TaskListItemDto,
   UpdateLabelDto,
   UpdateTaskDto,
 } from '@orbit/shared'
@@ -16,7 +17,7 @@ import { toPaginationParams } from '@orbit/shared'
 import { badRequest, conflict, notFound } from '../../core/errors/index.js'
 import type { OrganizationsRepository } from '../organizations/organizations.repository.js'
 import type { BoardsRepository } from '../boards/boards.repository.js'
-import type { TaskRow, TasksRepository } from './tasks.repository.js'
+import type { TaskCardRow, TaskRow, TasksRepository } from './tasks.repository.js'
 import type { NotificationsService } from '../notifications/notifications.service.js'
 import type { RealtimePublisher } from '../realtime/realtime.publisher.js'
 
@@ -79,22 +80,32 @@ export class TasksService {
       metadata: { title: dto.title },
     })
 
-    if (dto.assigneeIds.length > 0) {
-      await Promise.all(
-        dto.assigneeIds.map((userId) =>
-          this.deps.notifications.taskAssigned({
-            orgId,
-            taskId: task.id,
-            taskTitle: dto.title,
-            userId,
-          }),
-        ),
-      )
-    }
+    await this.notifyAssigned(orgId, task.id, dto.title, dto.assigneeIds, actorId)
 
     const created = await this.getTask(task.id)
     this.emitTaskEvent('task.created', created, actorId)
     return created
+  }
+
+  /**
+   * Notifies assignees with the actor's real name. Assigning yourself is not
+   * news, so the actor never receives their own assignment notification.
+   */
+  private async notifyAssigned(
+    orgId: string,
+    taskId: string,
+    taskTitle: string,
+    userIds: readonly string[],
+    actorId: string,
+  ): Promise<void> {
+    const recipients = userIds.filter((userId) => userId !== actorId)
+    if (recipients.length === 0) return
+    const actorName = (await this.deps.repository.findUserName(actorId)) ?? undefined
+    await Promise.all(
+      recipients.map((userId) =>
+        this.deps.notifications.taskAssigned({ orgId, taskId, taskTitle, actorName, userId }),
+      ),
+    )
   }
 
   async getTask(taskId: string): Promise<TaskDto> {
@@ -158,18 +169,7 @@ export class TasksService {
       }),
     ])
 
-    if (dto.assigneeIds.length > 0) {
-      await Promise.all(
-        dto.assigneeIds.map((userId) =>
-          this.deps.notifications.taskAssigned({
-            orgId: parent.orgId,
-            taskId: subtask.id,
-            taskTitle: subtask.title,
-            userId,
-          }),
-        ),
-      )
-    }
+    await this.notifyAssigned(parent.orgId, subtask.id, subtask.title, dto.assigneeIds, actorId)
 
     const created = await this.getTask(subtask.id)
     this.emitTaskEvent('task.created', created, actorId, 'subtask')
@@ -188,7 +188,7 @@ export class TasksService {
   async listTasks(
     projectId: string,
     query: TaskQuery,
-  ): Promise<{ rows: TaskDto[]; total: number }> {
+  ): Promise<{ rows: TaskListItemDto[]; total: number }> {
     const { skip, take } = toPaginationParams(query)
     const result = await this.deps.repository.listTasks(
       projectId,
@@ -202,13 +202,22 @@ export class TasksService {
       skip,
       take,
     )
-    return { rows: result.rows.map((row) => this.toTaskDto(row)), total: result.total }
+    return { rows: result.rows.map((row) => this.toTaskListItemDto(row)), total: result.total }
+  }
+
+  async listMyTasks(
+    orgId: string,
+    userId: string,
+    limit: number,
+  ): Promise<{ rows: TaskListItemDto[]; total: number }> {
+    const result = await this.deps.repository.listAssignedOpenTasks(orgId, userId, limit)
+    return { rows: result.rows.map((row) => this.toTaskListItemDto(row)), total: result.total }
   }
 
   async listBoardTasks(
     boardId: string,
     query: TaskQuery,
-  ): Promise<{ rows: TaskDto[]; total: number }> {
+  ): Promise<{ rows: TaskListItemDto[]; total: number }> {
     const board = await this.deps.boards.findBoardById(boardId)
     if (!board) {
       throw notFound('Board not found')
@@ -227,7 +236,7 @@ export class TasksService {
       skip,
       take,
     )
-    return { rows: result.rows.map((row) => this.toTaskDto(row)), total: result.total }
+    return { rows: result.rows.map((row) => this.toTaskListItemDto(row)), total: result.total }
   }
 
   async updateTask(
@@ -337,6 +346,7 @@ export class TasksService {
         .filter((id, index, ids) => id !== actorId && ids.indexOf(id) === index)
 
       if (recipients.length > 0) {
+        const actorName = (await this.deps.repository.findUserName(actorId)) ?? undefined
         await Promise.all(
           recipients.map((userId) =>
             this.deps.notifications.taskStatusChanged({
@@ -344,6 +354,7 @@ export class TasksService {
               taskId: task.id,
               taskTitle: task.title,
               statusName,
+              actorName,
               userId,
             }),
           ),
@@ -369,12 +380,7 @@ export class TasksService {
       metadata: { userId },
     })
 
-    await this.deps.notifications.taskAssigned({
-      orgId: task.orgId,
-      taskId: task.id,
-      taskTitle: task.title,
-      userId,
-    })
+    await this.notifyAssigned(task.orgId, task.id, task.title, [userId], actorId)
 
     const updated = await this.getTask(task.id)
     this.emitTaskEvent('task.updated', updated, actorId, 'assignee-added')
@@ -476,7 +482,7 @@ export class TasksService {
   async updateLabel(labelId: string, orgId: string, dto: UpdateLabelDto): Promise<LabelDto> {
     const label = await this.findLabel(labelId, orgId)
     const updated = await this.deps.repository.updateLabel(label.id, dto)
-    const count = await this.findLabelTaskCount(orgId, updated.id)
+    const count = await this.findLabelTaskCount(updated.id)
     return this.toLabelDto(updated, count)
   }
 
@@ -520,30 +526,29 @@ export class TasksService {
   }
 
   private async verifyOrgMembers(orgId: string, userIds: string[]): Promise<void> {
-    for (const userId of userIds) {
-      const membership = await this.deps.organizations.getMembership(orgId, userId)
-      if (!membership || !membership.isActive) {
-        throw badRequest('One or more assignees are not members of this organization', {
-          field: 'assigneeIds',
-        })
-      }
+    const unique = [...new Set(userIds)]
+    if (unique.length === 0) return
+    const active = await this.deps.organizations.countActiveMembers(orgId, unique)
+    if (active !== unique.length) {
+      throw badRequest('One or more assignees are not members of this organization', {
+        field: 'assigneeIds',
+      })
     }
   }
 
   private async verifyOrgLabels(orgId: string, labelIds: string[]): Promise<void> {
-    for (const labelId of labelIds) {
-      const label = await this.deps.repository.findLabelById(labelId)
-      if (!label || label.orgId !== orgId) {
-        throw badRequest('One or more labels do not belong to this organization', {
-          field: 'labelIds',
-        })
-      }
+    const unique = [...new Set(labelIds)]
+    if (unique.length === 0) return
+    const found = await this.deps.repository.countOrgLabels(orgId, unique)
+    if (found !== unique.length) {
+      throw badRequest('One or more labels do not belong to this organization', {
+        field: 'labelIds',
+      })
     }
   }
 
-  private async findLabelTaskCount(orgId: string, labelId: string): Promise<number> {
-    const labels = await this.deps.repository.listLabels(orgId)
-    return labels.find((item) => item.id === labelId)?.taskCount ?? 0
+  private findLabelTaskCount(labelId: string): Promise<number> {
+    return this.deps.repository.countLabelTasks(labelId)
   }
 
   private async findTask(taskId: string) {
@@ -563,6 +568,10 @@ export class TasksService {
   }
 
   private toTaskDto(task: TaskRow): TaskDto {
+    return { ...this.toTaskListItemDto(task), description: task.description }
+  }
+
+  private toTaskListItemDto(task: TaskCardRow): TaskListItemDto {
     return {
       id: task.id,
       orgId: task.orgId,
@@ -574,7 +583,6 @@ export class TasksService {
       parentId: task.parentId,
       createdById: task.createdById,
       title: task.title,
-      description: task.description,
       priority: task.priority,
       dueDate: task.dueDate ? task.dueDate.toISOString() : null,
       estimatedHours:

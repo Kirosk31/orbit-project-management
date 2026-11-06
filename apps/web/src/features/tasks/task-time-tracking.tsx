@@ -193,6 +193,8 @@ export function TaskTimeTracking({
     void queryClient.invalidateQueries({ queryKey: ['task', taskId] })
     void queryClient.invalidateQueries({ queryKey: ['task-activity', taskId] })
     void queryClient.invalidateQueries({ queryKey: ['board-tasks'] })
+    void queryClient.invalidateQueries({ queryKey: ['my-tasks'] })
+    void queryClient.invalidateQueries({ queryKey: ['project-tasks'] })
   }
   const showError = (): void => {
     toast.error(t('auth.genericError'))

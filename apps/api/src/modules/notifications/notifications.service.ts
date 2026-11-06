@@ -25,6 +25,15 @@ export class NotificationsService {
     return actorName?.trim() || 'Someone'
   }
 
+  /**
+   * Only a real actor name is stored in metadata; clients localize the
+   * fallback, so an English placeholder must never be persisted there.
+   */
+  private actorMetadata(actorName?: string): { actorName?: string } {
+    const name = actorName?.trim()
+    return name ? { actorName: name } : {}
+  }
+
   async list(userId: string, query: NotificationListQuery): Promise<NotificationListResult> {
     const { skip, take } = toPaginationParams(query)
     const result = await this.deps.repository.listForUser(userId, {
@@ -84,7 +93,11 @@ export class NotificationsService {
         title: 'You were assigned a task',
         body: `${actorName} assigned you to "${input.taskTitle}"`,
         linkUrl: `/app/tasks/${input.taskId}`,
-        metadata: { taskId: input.taskId, taskTitle: input.taskTitle, actorName },
+        metadata: {
+          taskId: input.taskId,
+          taskTitle: input.taskTitle,
+          ...this.actorMetadata(input.actorName),
+        },
       },
     ])
     await this.emitNotificationUpdated(input.userId)
@@ -111,7 +124,7 @@ export class NotificationsService {
           taskId: input.taskId,
           taskTitle: input.taskTitle,
           statusName: input.statusName,
-          actorName,
+          ...this.actorMetadata(input.actorName),
         },
       },
     ])
@@ -134,7 +147,11 @@ export class NotificationsService {
         title: 'You were mentioned',
         body: `${actorName} mentioned you in "${input.taskTitle}"`,
         linkUrl: `/app/tasks/${input.taskId}`,
-        metadata: { taskId: input.taskId, taskTitle: input.taskTitle, actorName },
+        metadata: {
+          taskId: input.taskId,
+          taskTitle: input.taskTitle,
+          ...this.actorMetadata(input.actorName),
+        },
       },
     ])
     await this.emitNotificationUpdated(input.userId)
@@ -156,7 +173,11 @@ export class NotificationsService {
         title: 'New comment on your task',
         body: `${actorName} commented on "${input.taskTitle}"`,
         linkUrl: `/app/tasks/${input.taskId}`,
-        metadata: { taskId: input.taskId, taskTitle: input.taskTitle, actorName },
+        metadata: {
+          taskId: input.taskId,
+          taskTitle: input.taskTitle,
+          ...this.actorMetadata(input.actorName),
+        },
       },
     ])
     await this.emitNotificationUpdated(input.userId)

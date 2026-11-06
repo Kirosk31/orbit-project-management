@@ -29,6 +29,11 @@ export class SmtpMailService implements MailService {
       host: config.env.SMTP_HOST,
       port: config.env.SMTP_PORT,
       secure: config.env.SMTP_PORT === 465,
+      // Bounded well under the outbox lock (60 s by default): a hung server must
+      // fail the attempt before another worker can reclaim and resend the email.
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 30_000,
       auth:
         config.env.SMTP_USER && config.env.SMTP_PASS
           ? { user: config.env.SMTP_USER, pass: config.env.SMTP_PASS }

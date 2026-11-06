@@ -1,5 +1,20 @@
 import AxeBuilder from '@axe-core/playwright'
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+
+/** Follows a main navigation link, opening the menu first on phone-sized screens. */
+async function navigateTo(page: Page, name: string): Promise<void> {
+  const menuButton = page.getByRole('button', { name: 'Open menu' })
+  const link = page.getByRole('link', { name })
+  // Wait for the app shell: one of the two is shown, depending on the viewport.
+  await expect(link.or(menuButton).first()).toBeVisible()
+  if (await menuButton.isVisible()) {
+    await menuButton.click()
+    await page.getByRole('dialog').getByRole('link', { name }).click()
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    return
+  }
+  await link.click()
+}
 
 test('an owner can create a workspace, project, board, column, and task', async ({ page }) => {
   const unique = `${Date.now()}-${test.info().workerIndex}`
@@ -20,14 +35,14 @@ test('an owner can create a workspace, project, board, column, and task', async 
   expect(registration.status(), `Registration failed: ${await registration.text()}`).toBe(201)
   await expect(page).toHaveURL(/\/app$/)
 
-  await page.getByRole('link', { name: 'Organizations' }).click()
+  await navigateTo(page, 'Organizations')
   await page.getByRole('button', { name: 'Create organization' }).click()
   await page.getByLabel('Name').fill(organizationName)
   await page.getByLabel('Description').fill('Browser-tested workspace')
   await page.getByRole('button', { name: 'Create organization', exact: true }).last().click()
   await expect(page.getByRole('heading', { name: organizationName })).toBeVisible()
 
-  await page.getByRole('link', { name: 'Projects' }).click()
+  await navigateTo(page, 'Projects')
   await page.getByRole('button', { name: 'Create project' }).click()
   await page.getByLabel('Name').fill(projectName)
   await page.getByLabel('Key').fill(`E${test.info().workerIndex}E`)
@@ -45,6 +60,17 @@ test('an owner can create a workspace, project, board, column, and task', async 
   await page.getByLabel('Column name').fill('To Do')
   await page.getByRole('button', { name: 'Add column', exact: true }).last().click()
   await expect(page.getByText('To Do', { exact: true })).toBeVisible()
+
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  // Keyboard path: "n" opens the same dialog as the button, Escape closes it.
+  await page.keyboard.press('n')
+  await expect(page.getByRole('dialog', { name: 'Add task' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.keyboard.press('/')
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Add task' }).click()
   await page.getByLabel('Title').fill(taskName)

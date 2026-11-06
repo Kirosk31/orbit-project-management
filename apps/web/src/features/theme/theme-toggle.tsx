@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import type { ReactNode } from 'react'
-import { MonitorIcon, MoonIcon, SunIcon } from 'lucide-react'
+import { CheckIcon, MonitorIcon, MoonIcon, SunIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -21,7 +21,8 @@ const THEME_OPTIONS: Array<{ value: ThemePreference; label: TranslationKey; icon
 
 export function ThemeToggle(): ReactNode {
   const { t } = useTranslation()
-  const { theme, setTheme } = useThemeStore()
+  const theme = useThemeStore((state) => state.theme)
+  const setTheme = useThemeStore((state) => state.setTheme)
   const resolved = useResolvedTheme()
 
   const CurrentIcon = resolved === 'dark' ? MoonIcon : SunIcon
@@ -38,7 +39,7 @@ export function ThemeToggle(): ReactNode {
           <DropdownMenuItem key={value} onSelect={() => setTheme(value)}>
             {icon}
             <span>{translate(label)}</span>
-            {theme === value && <span className="ml-auto text-xs">✓</span>}
+            {theme === value && <CheckIcon className="ml-auto size-4" />}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

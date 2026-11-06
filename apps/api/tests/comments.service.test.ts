@@ -108,6 +108,7 @@ function buildService(
   } as unknown as TasksRepository
   const organizations = {
     getMembership: vi.fn(async () => ({ isActive: true })),
+    countActiveMembers: vi.fn(async (_orgId: string, ids: readonly string[]) => ids.length),
     ...overrides.organizations,
   } as unknown as OrganizationsRepository
   const notifications = createFakeNotifications(overrides.notifications)
@@ -249,7 +250,10 @@ describe('CommentsService', () => {
 
   it('rejects mentions of non-members', async () => {
     const { service } = buildService({
-      organizations: { getMembership: vi.fn(async () => null) },
+      organizations: {
+        getMembership: vi.fn(async () => null),
+        countActiveMembers: vi.fn(async () => 0),
+      },
     })
 
     const error = await service

@@ -8,6 +8,7 @@ import { HeroSection } from '@/pages/landing/sections/hero'
 import { FeaturesSection } from '@/pages/landing/sections/features'
 import { HowItWorksSection } from '@/pages/landing/sections/how-it-works'
 import { FaqSection } from '@/pages/landing/sections/faq'
+import { ProofSection } from '@/pages/landing/sections/proof'
 import { CtaSection } from '@/pages/landing/sections/cta'
 
 export function LandingPage(): ReactNode {
@@ -30,6 +31,7 @@ export function LandingPage(): ReactNode {
         <HeroSection />
         <FeaturesSection />
         <HowItWorksSection />
+        <ProofSection />
         <FaqSection />
         <CtaSection />
       </main>

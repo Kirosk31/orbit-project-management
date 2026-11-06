@@ -103,6 +103,7 @@ function createFakeRepository(overrides: Partial<TasksRepository> = {}): TasksRe
     updateTask: vi.fn(async (_id, data) => makeTask(data as Partial<Task>)),
     softDeleteTask: vi.fn(async () => undefined),
     listTasks: vi.fn(async () => ({ rows: [], total: 0 })),
+    listAssignedOpenTasks: vi.fn(async () => ({ rows: [], total: 0 })),
     countTasksInColumn: vi.fn(async () => 0),
     countTasksInProject: vi.fn(async () => 0),
     moveTask: vi.fn(async () => makeTask()),
@@ -112,11 +113,14 @@ function createFakeRepository(overrides: Partial<TasksRepository> = {}): TasksRe
     removeLabel: vi.fn(async () => undefined),
     listLabels: vi.fn(async () => []),
     findLabelById: vi.fn(async () => makeLabel()),
+    countOrgLabels: vi.fn(async (_orgId: string, ids: readonly string[]) => ids.length),
+    countLabelTasks: vi.fn(async () => 0),
     createLabel: vi.fn(async (_orgId, data) => makeLabel(data as Partial<Label>)),
     updateLabel: vi.fn(async (_id, data) => makeLabel(data as Partial<Label>)),
     softDeleteLabel: vi.fn(async () => undefined),
     listTaskActivity: vi.fn(async () => []),
     recordTaskActivity: vi.fn(async () => undefined),
+    findUserName: vi.fn(async () => 'Ana Rojas'),
     ...overrides,
   }
   return repository
@@ -177,6 +181,7 @@ function buildService(
   const boards = createFakeBoards(overrides.boards)
   const organizations = {
     getMembership: vi.fn(async () => null),
+    countActiveMembers: vi.fn(async (_orgId: string, ids: readonly string[]) => ids.length),
     ...overrides.organizations,
   } as unknown as OrganizationsRepository
   const notifications = createFakeNotifications(overrides.notifications)
@@ -284,9 +289,47 @@ describe('TasksService', () => {
         orgId: 'org-1',
         taskId: 'task-1',
         taskTitle: 'Assigned task',
+        actorName: 'Ana Rojas',
         userId: 'user-2',
       }),
     )
+  })
+
+  it('does not notify an actor who assigns a task to themselves', async () => {
+    const notifications = createFakeNotifications({
+      taskAssigned: vi.fn(async () => undefined),
+    })
+    const { service } = buildService({
+      repository: { countTasksInColumn: vi.fn(async () => 0) },
+      organizations: {
+        getMembership: vi.fn(
+          async (): Promise<OrgMembership | null> =>
+            ({
+              id: 'membership-1',
+              orgId: 'org-1',
+              userId: 'user-1',
+              roleId: 'role-1',
+              isActive: true,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              deletedAt: null,
+              role: { key: 'ADMIN', name: 'Admin', isSystem: true, permissions: [] },
+            }) as OrgMembership,
+        ),
+      },
+      notifications,
+    })
+
+    await service.createTask('project-1', 'org-1', 'user-1', {
+      title: 'My own task',
+      description: '',
+      priority: 'NONE',
+      assigneeIds: ['user-1'],
+      labelIds: [],
+      columnId: 'column-1',
+    })
+
+    expect(notifications.taskAssigned).not.toHaveBeenCalled()
   })
 
   it('sends an assignment notification when adding an assignee', async () => {
@@ -378,6 +421,23 @@ describe('TasksService', () => {
       0,
       50,
     )
+  })
+
+  it('leaves the description out of list rows and keeps it on the task itself', async () => {
+    const { description: _omitted, ...card } = makeTaskRow({ description: 'Long notes' })
+    const { service } = buildService({
+      repository: {
+        listAssignedOpenTasks: vi.fn(async () => ({ rows: [card], total: 1 })),
+        findTaskById: vi.fn(async () => makeTaskRow({ description: 'Long notes' })),
+      },
+    })
+
+    const list = await service.listMyTasks('org-1', 'user-1', 10)
+    expect(list.rows[0]).not.toHaveProperty('description')
+    expect(list.rows[0]).toMatchObject({ id: 'task-1', title: 'A task' })
+
+    const task = await service.getTask('task-1')
+    expect(task.description).toBe('Long notes')
   })
 
   it('creates a one-level subtask that inherits tenant, project and status', async () => {
@@ -533,7 +593,10 @@ describe('TasksService', () => {
   it('rejects assignees that are not org members', async () => {
     const { service } = buildService({
       boards: { findDefaultStatus: vi.fn(async () => makeStatus()) },
-      organizations: { getMembership: vi.fn(async () => null) },
+      organizations: {
+        getMembership: vi.fn(async () => null),
+        countActiveMembers: vi.fn(async () => 0),
+      },
     })
 
     const promise = service.createTask('project-1', 'org-1', 'user-1', {

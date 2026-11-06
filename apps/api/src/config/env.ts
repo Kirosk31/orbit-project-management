@@ -12,6 +12,9 @@ const envSchema = z.object({
       (value) => value.startsWith('postgresql://') || value.startsWith('postgres://'),
       'DATABASE_URL must be a PostgreSQL connection string',
     ),
+  // Connections each API or worker process may hold. Size it so every instance
+  // together stays under Postgres max_connections (100 by default).
+  DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
   REDIS_URL: z.url(),
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
   UPLOAD_DIR: z.string().default('./data/uploads'),
@@ -33,6 +36,7 @@ const envSchema = z.object({
   RATE_LIMIT_UPLOAD_MAX: z.coerce.number().int().min(1).default(10),
   RATE_LIMIT_SEARCH_MAX: z.coerce.number().int().min(1).default(60),
   RATE_LIMIT_ANALYTICS_MAX: z.coerce.number().int().min(1).default(30),
+  RATE_LIMIT_RUM_MAX: z.coerce.number().int().min(1).default(60),
   TRUST_PROXY: z
     .string()
     .trim()

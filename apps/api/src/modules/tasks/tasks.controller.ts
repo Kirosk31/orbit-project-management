@@ -4,6 +4,7 @@ import type {
   CreateSubtaskDto,
   CreateTaskDto,
   MoveTaskDto,
+  MyTasksQuery,
   TaskQuery,
   UpdateLabelDto,
   UpdateTaskDto,
@@ -22,6 +23,13 @@ export class TasksController {
     const project = res.locals.project as { id: string }
     const query = res.locals.validatedQuery as TaskQuery
     const result = await this.service.listTasks(project.id, query)
+    respond(res, result)
+  }
+
+  listMine = async (req: Request, res: Response): Promise<void> => {
+    const org = res.locals.org as { id: string }
+    const query = res.locals.validatedQuery as MyTasksQuery
+    const result = await this.service.listMyTasks(org.id, req.user!.id, query.limit)
     respond(res, result)
   }
 

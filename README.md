@@ -2,7 +2,7 @@
 
 Orbit is a full-stack, multi-tenant project management platform for teams that need organizations, projects, Kanban boards, detailed tasks, collaboration, search, and delivery analytics in one product.
 
-This repository is a production-oriented portfolio project rather than a static demo. It contains a React application, an Express API, a relational PostgreSQL model, Redis-backed rate limiting and multi-instance realtime delivery, security-focused integration tests, browser accessibility tests, production containers, and automated CI gates.
+This repository is a production-oriented portfolio project rather than a static demo. It contains a React application, a Next.js public site, an Express API, a relational PostgreSQL model, Redis-backed rate limiting and multi-instance realtime delivery, security-focused integration tests, browser accessibility tests, production containers, and automated CI gates.
 
 ## Product capabilities
 
@@ -13,7 +13,32 @@ This repository is a production-oriented portfolio project rather than a static 
 - Dashboards for task totals, completion rate, overdue work, tracked time, project progress, workload, velocity, activity, and burndown
 - In-app notifications and authorized Socket.IO updates for tasks, boards, comments, notifications, and presence
 - English, Spanish, French, and Brazilian Portuguese with persisted account preferences
-- Responsive light and dark themes, keyboard-accessible navigation, command palette, reduced-motion support, loading states, and error boundaries
+- Responsive light and dark themes, white-label brand color preview, keyboard shortcuts, keyboard-accessible navigation, command palette, reduced-motion support, loading states, and error boundaries
+
+## Design
+
+Orbit's interface follows one idea, **calm focus**: quiet surfaces, generous air, and color only when it carries meaning. Its signature is the _azulejo tile_, after the tile panels Athos Bulcão made for Brasília. Every task is one tile; finishing it glazes the tile in the brand color, and the sprint becomes a small wall of progress that reads at a glance.
+
+|                          Before                          |                   After                    |
+| :------------------------------------------------------: | :----------------------------------------: |
+| ![Previous dashboard](docs/screenshots/before-today.png) | ![Today](docs/screenshots/today-light.png) |
+|   ![Previous board](docs/screenshots/before-board.png)   | ![Board](docs/screenshots/board-light.png) |
+
+| Task, light                                     | Today, Spanish                        | Today, mobile                                |
+| ----------------------------------------------- | ------------------------------------- | -------------------------------------------- |
+| ![Task detail](docs/screenshots/task-light.png) | ![Hoy](docs/screenshots/today-es.png) | ![Mobile](docs/screenshots/today-mobile.png) |
+
+Decisions worth knowing:
+
+- **Today first.** The home screen answers "what needs me now": overdue and due-today work is grouped on ochre, served by one `GET /organizations/:slug/my-tasks` call instead of a request per project. New accounts get a three-step first-week guide instead of an empty dashboard.
+- **One hue retunes the product.** Primary, ring, rail and logo derive from `--brand-hue` at fixed lightness, so an agency can resell Orbit in its own color without breaking contrast. Try it in **Profile → Brand color**; axe reports no serious issues across six hues in both themes.
+- **Never color alone.** Priority, status and overdue work always carry an icon or text next to the color. Reduced motion collapses every animation, including the glaze.
+- **Keyboard.** `Ctrl/Cmd K` or `/` opens search, `N` adds a task to the first column of a board.
+- **One source for two apps.** The Vite app and the Next.js [public site](docs/public-site.md) share tokens, locale catalogs and the logo/tile components through workspace packages.
+
+![The public site in Costa Rican Spanish](docs/screenshots/site-es-cr.png)
+
+The full system (palette in OKLCH, type, spacing, motion, components and named rules) lives in [`apps/web/DESIGN.md`](apps/web/DESIGN.md); product intent and audience are in [`apps/web/PRODUCT.md`](apps/web/PRODUCT.md).
 
 ## Security model
 
@@ -35,12 +60,13 @@ See [SECURITY.md](SECURITY.md), [the security audit](docs/SECURITY_AUDIT.md), an
 
 | Area     | Stack                                                                                                                                    |
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Site     | Next.js 16 App Router, static per-locale pages, `next/og`, sitemap and `hreflang` ([details](docs/public-site.md))                       |
 | Web      | React 19, TypeScript, Vite, React Router, TanStack Query, Zustand, Tailwind CSS, Radix UI, React Hook Form, Zod, Recharts, Framer Motion |
 | API      | Node.js 22, Express 5, TypeScript, Socket.IO, Pino                                                                                       |
 | Data     | PostgreSQL 16, Prisma 7, Redis 7                                                                                                         |
 | Security | bcrypt, JWT, `HttpOnly` cookies, CSRF, Helmet, CORS allowlist, Redis rate limits                                                         |
 | Testing  | Vitest, Supertest, React Testing Library, Playwright, Axe                                                                                |
-| Delivery | Docker, Docker Compose, unprivileged NGINX, GitHub Actions, Dependabot, Gitleaks                                                         |
+| Delivery | Docker, Docker Compose, unprivileged NGINX, GitHub Actions and Azure Pipelines ([setup](docs/azure-devops.md)), Dependabot, Gitleaks     |
 
 ## Repository layout
 
@@ -48,8 +74,12 @@ See [SECURITY.md](SECURITY.md), [the security audit](docs/SECURITY_AUDIT.md), an
 .
 |-- apps/
 |   |-- api/                 Express API, Socket.IO, Prisma, migrations, seed
+|   |-- site/                Next.js public site, five locales, SEO metadata
 |   `-- web/                 React application and localized UI
 |-- packages/
+|   |-- brand/               Logo and tile progress panel shared by web and site
+|   |-- design-tokens/       Azulejo OKLCH tokens and Tailwind v4 theme mapping
+|   |-- locales/             EN, ES, FR, PT-BR catalogs shared by web and site
 |   |-- shared/              Shared Zod contracts, types, permissions, events
 |   |-- eslint-config/
 |   |-- prettier-config/
@@ -258,6 +288,8 @@ Confirm the API readiness endpoint is green, the Vite terminal is still running,
 - [Production deployment and operations](docs/DEPLOYMENT.md)
 - [Safe GitHub publication checklist and project metadata](docs/GITHUB_RELEASE.md)
 - [Localization](docs/localization.md)
+- [Public site (Next.js)](docs/public-site.md)
+- [Azure DevOps pipeline](docs/azure-devops.md)
 - [Current-state audit](docs/CURRENT_STATE_AUDIT.md)
 - [Security audit](docs/SECURITY_AUDIT.md)
 - [Threat model](docs/THREAT_MODEL.md)

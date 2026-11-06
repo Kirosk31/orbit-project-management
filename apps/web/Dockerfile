@@ -6,14 +6,21 @@ ENV HUSKY=0
 
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/package.json
+COPY apps/site/package.json apps/site/package.json
 COPY apps/web/package.json apps/web/package.json
+COPY packages/brand/package.json packages/brand/package.json
+COPY packages/design-tokens/package.json packages/design-tokens/package.json
 COPY packages/eslint-config/package.json packages/eslint-config/package.json
 COPY packages/prettier-config/package.json packages/prettier-config/package.json
+COPY packages/locales/package.json packages/locales/package.json
 COPY packages/shared/package.json packages/shared/package.json
 COPY packages/tsconfig/package.json packages/tsconfig/package.json
 RUN npm ci
 
 COPY apps/web apps/web
+COPY packages/brand packages/brand
+COPY packages/design-tokens packages/design-tokens
+COPY packages/locales packages/locales
 COPY packages/shared packages/shared
 COPY packages/tsconfig packages/tsconfig
 
@@ -22,6 +29,10 @@ ARG VITE_APP_NAME=Orbit
 ENV VITE_API_URL=${VITE_API_URL} \
     VITE_APP_NAME=${VITE_APP_NAME}
 RUN npm run build --workspace=@orbit/shared && npm run build --workspace=@orbit/web
+# Precompressed copies for nginx gzip_static, so assets are not gzipped per request.
+RUN find apps/web/dist -type f \
+      \( -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.svg' -o -name '*.json' -o -name '*.txt' \) \
+      -size +1k -exec gzip -9 --keep {} +
 
 FROM nginxinc/nginx-unprivileged:1.30.4-alpine AS web
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf

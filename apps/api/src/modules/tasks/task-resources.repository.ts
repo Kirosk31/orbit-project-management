@@ -1,4 +1,5 @@
 import type { Checklist, ChecklistItem, Prisma, PrismaClient } from '@prisma/client'
+import { writePositions } from '../../shared/database/reorder.js'
 
 const CHECKLIST_INCLUDE = {
   items: { orderBy: [{ position: 'asc' as const }, { createdAt: 'asc' as const }] },
@@ -91,12 +92,11 @@ export class PrismaTaskResourcesRepository implements TaskResourcesRepository {
         orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
         select: { id: true },
       })
-      for (let position = 0; position < remaining.length; position += 1) {
-        await tx.checklistItem.update({
-          where: { id: remaining[position]!.id },
-          data: { position },
-        })
-      }
+      await writePositions(
+        tx,
+        'checklist_items',
+        remaining.map((item) => item.id),
+      )
     })
   }
 
@@ -113,12 +113,7 @@ export class PrismaTaskResourcesRepository implements TaskResourcesRepository {
         itemId,
         ...siblings.slice(clamped).map((item) => item.id),
       ]
-      for (let position = 0; position < ordered.length; position += 1) {
-        await tx.checklistItem.update({
-          where: { id: ordered[position]! },
-          data: { position },
-        })
-      }
+      await writePositions(tx, 'checklist_items', ordered)
     })
   }
 }

@@ -168,7 +168,7 @@ function CommentComposer({
                     avatarKey={member.avatarKey}
                     alt={member.fullName}
                   />
-                  <AvatarFallback className="text-[10px]">
+                  <AvatarFallback className="text-[0.6875rem]">
                     {initialsOf(member.fullName)}
                   </AvatarFallback>
                 </Avatar>
@@ -304,7 +304,7 @@ export function TaskComments({ taskId, members }: TaskCommentsProps): ReactNode 
                 {formatRelativeTime(comment.createdAt, i18n.language)}
               </span>
               {comment.isEdited && (
-                <Badge variant="outline" className="px-1.5 text-[10px]">
+                <Badge variant="outline" className="px-1.5 text-[0.6875rem]">
                   {t('comments.edited')}
                 </Badge>
               )}

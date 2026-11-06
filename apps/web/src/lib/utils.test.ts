@@ -4,6 +4,7 @@ import {
   buildQueryString,
   cn,
   formatDate,
+  formatRelativeTime,
   getContrastTextColor,
   initialsOf,
   isNotNull,
@@ -44,6 +45,24 @@ describe('initialsOf', () => {
 describe('formatDate', () => {
   it('formats an ISO date using the requested locale', () => {
     expect(formatDate('2026-01-05T12:00:00.000Z', 'en-US')).toBe('Jan 5, 2026')
+  })
+})
+
+describe('formatRelativeTime', () => {
+  const now = Date.parse('2026-10-22T12:00:00.000Z')
+
+  it('describes the elapsed time in the largest fitting unit', () => {
+    expect(formatRelativeTime('2026-10-22T11:55:00.000Z', 'en', now)).toBe('5 minutes ago')
+    expect(formatRelativeTime('2026-10-21T12:00:00.000Z', 'en', now)).toBe('yesterday')
+    expect(formatRelativeTime('2026-10-25T12:00:00.000Z', 'en', now)).toBe('in 3 days')
+  })
+
+  it('reads as now within the last minute', () => {
+    expect(formatRelativeTime('2026-10-22T11:59:40.000Z', 'en', now)).toBe('now')
+  })
+
+  it('localizes the phrase', () => {
+    expect(formatRelativeTime('2026-10-21T12:00:00.000Z', 'es', now)).toBe('ayer')
   })
 })
 

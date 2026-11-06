@@ -73,6 +73,8 @@ export interface OrganizationsRepository {
   softDeleteOrg(id: string): Promise<void>
   listOrgsForUser(userId: string): Promise<OrgRow[]>
   getMembership(orgId: string, userId: string): Promise<OrgMembership | null>
+  /** How many of these users are active members, in one query. */
+  countActiveMembers(orgId: string, userIds: readonly string[]): Promise<number>
   countMembers(orgId: string): Promise<number>
   listMembers(orgId: string): Promise<OrgMemberRow[]>
   findMember(orgId: string, userId: string): Promise<OrgMemberRow | null>
@@ -197,6 +199,12 @@ export class PrismaOrganizationsRepository implements OrganizationsRepository {
         roleKey: membership.role.key,
         memberCount: membership.org._count.members,
       }))
+  }
+
+  countActiveMembers(orgId: string, userIds: readonly string[]): Promise<number> {
+    return this.prisma.organizationMember.count({
+      where: { orgId, userId: { in: [...userIds] }, isActive: true },
+    })
   }
 
   async getMembership(orgId: string, userId: string): Promise<OrgMembership | null> {

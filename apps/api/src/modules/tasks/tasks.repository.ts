@@ -1,4 +1,5 @@
 import type { Label, Prisma, PrismaClient, Task } from '@prisma/client'
+import { writePositions } from '../../shared/database/reorder.js'
 import type { TaskPriority } from '@orbit/shared'
 
 export interface TaskRow extends Task {
@@ -19,8 +20,11 @@ export interface TaskRow extends Task {
   subtasks: Array<{ isCompleted: boolean }>
 }
 
+/** A task as lists load it: everything a card shows, without the description. */
+export type TaskCardRow = Omit<TaskRow, 'description'>
+
 export interface TaskListResult {
-  rows: TaskRow[]
+  rows: TaskCardRow[]
   total: number
 }
 
@@ -101,6 +105,8 @@ export interface TasksRepository {
   removeLabel(taskId: string, labelId: string): Promise<void>
   listLabels(orgId: string): Promise<Array<Label & { taskCount: number }>>
   findLabelById(id: string): Promise<Label | null>
+  countOrgLabels(orgId: string, labelIds: readonly string[]): Promise<number>
+  countLabelTasks(labelId: string): Promise<number>
   createLabel(orgId: string, data: { name: string; color: string }): Promise<Label>
   updateLabel(id: string, data: { name?: string; color?: string }): Promise<Label>
   softDeleteLabel(id: string): Promise<void>
@@ -115,6 +121,8 @@ export interface TasksRepository {
     newValue?: string | null
     metadata?: Prisma.InputJsonValue
   }): Promise<void>
+  findUserName(userId: string): Promise<string | null>
+  listAssignedOpenTasks(orgId: string, userId: string, take: number): Promise<TaskListResult>
 }
 
 const TASK_INCLUDE = {
@@ -131,9 +139,53 @@ const TASK_INCLUDE = {
   },
 } satisfies Prisma.TaskInclude
 
-function toTaskRow(row: Prisma.TaskGetPayload<{ include: typeof TASK_INCLUDE }>): TaskRow {
+/**
+ * Lists select every column a card needs and skip `description`, which can be
+ * up to 10,000 characters per task and is only shown on the task page.
+ */
+const TASK_CARD_SELECT = {
+  id: true,
+  orgId: true,
+  projectId: true,
+  boardId: true,
+  columnId: true,
+  statusId: true,
+  parentId: true,
+  createdById: true,
+  title: true,
+  priority: true,
+  dueDate: true,
+  estimatedHours: true,
+  trackedSeconds: true,
+  position: true,
+  isArchived: true,
+  isCompleted: true,
+  completedAt: true,
+  createdAt: true,
+  updatedAt: true,
+  deletedAt: true,
+  status: TASK_INCLUDE.status,
+  assignees: {
+    select: {
+      id: true,
+      user: { select: { id: true, email: true, fullName: true, avatarKey: true } },
+    },
+  },
+  labels: {
+    select: { id: true, label: { select: { id: true, name: true, color: true } } },
+  },
+  subtasks: TASK_INCLUDE.subtasks,
+} satisfies Prisma.TaskSelect
+
+type TaskRelations = Pick<
+  Prisma.TaskGetPayload<{ select: typeof TASK_CARD_SELECT }>,
+  'status' | 'assignees' | 'labels' | 'subtasks'
+>
+
+function flattenRelations(
+  row: TaskRelations,
+): Pick<TaskRow, 'statusName' | 'assignees' | 'labels' | 'subtasks'> {
   return {
-    ...row,
     statusName: row.status.name,
     assignees: row.assignees.map((a) => ({
       id: a.id,
@@ -148,7 +200,18 @@ function toTaskRow(row: Prisma.TaskGetPayload<{ include: typeof TASK_INCLUDE }>)
       name: l.label.name,
       color: l.label.color,
     })),
+    subtasks: row.subtasks,
   }
+}
+
+function toTaskRow(row: Prisma.TaskGetPayload<{ include: typeof TASK_INCLUDE }>): TaskRow {
+  return { ...row, ...flattenRelations(row) }
+}
+
+function toTaskCardRow(
+  row: Prisma.TaskGetPayload<{ select: typeof TASK_CARD_SELECT }>,
+): TaskCardRow {
+  return { ...row, ...flattenRelations(row) }
 }
 
 export class PrismaTasksRepository implements TasksRepository {
@@ -260,14 +323,41 @@ export class PrismaTasksRepository implements TasksRepository {
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.task.findMany({
         where,
-        include: TASK_INCLUDE,
+        select: TASK_CARD_SELECT,
         orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
         skip,
         take,
       }),
       this.prisma.task.count({ where }),
     ])
-    return { rows: rows.map(toTaskRow), total }
+    return { rows: rows.map(toTaskCardRow), total }
+  }
+
+  async listAssignedOpenTasks(
+    orgId: string,
+    userId: string,
+    take: number,
+  ): Promise<TaskListResult> {
+    const where: Prisma.TaskWhereInput = {
+      orgId,
+      deletedAt: null,
+      parentId: null,
+      isArchived: false,
+      isCompleted: false,
+      project: { deletedAt: null, isArchived: false },
+      assignees: { some: { userId } },
+    }
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.task.findMany({
+        where,
+        select: TASK_CARD_SELECT,
+        // Soonest deadline first; undated work sits after everything with a date.
+        orderBy: [{ dueDate: { sort: 'asc', nulls: 'last' } }, { createdAt: 'asc' }],
+        take,
+      }),
+      this.prisma.task.count({ where }),
+    ])
+    return { rows: rows.map(toTaskCardRow), total }
   }
 
   countTasksInColumn(columnId: string) {
@@ -318,9 +408,7 @@ export class PrismaTasksRepository implements TasksRepository {
         taskId,
         ...siblings.slice(clamped).map((s) => s.id),
       ]
-      for (let index = 0; index < ordered.length; index += 1) {
-        await tx.task.update({ where: { id: ordered[index] }, data: { position: index } })
-      }
+      await writePositions(tx, 'tasks', ordered)
       return tx.task.update({
         where: { id: taskId },
         data: { boardId: nextBoardId, columnId: nextColumnId, statusId: nextStatusId },
@@ -358,6 +446,14 @@ export class PrismaTasksRepository implements TasksRepository {
 
   findLabelById(id: string) {
     return this.prisma.label.findFirst({ where: { id, deletedAt: null } })
+  }
+
+  countOrgLabels(orgId: string, labelIds: readonly string[]) {
+    return this.prisma.label.count({ where: { orgId, id: { in: [...labelIds] }, deletedAt: null } })
+  }
+
+  countLabelTasks(labelId: string) {
+    return this.prisma.taskLabel.count({ where: { labelId } })
   }
 
   createLabel(orgId: string, data: { name: string; color: string }) {
@@ -406,5 +502,13 @@ export class PrismaTasksRepository implements TasksRepository {
     metadata?: Prisma.InputJsonValue
   }): Promise<void> {
     await this.prisma.taskActivity.create({ data })
+  }
+
+  async findUserName(userId: string): Promise<string | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { fullName: true },
+    })
+    return user?.fullName ?? null
   }
 }

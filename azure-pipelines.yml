@@ -1,0 +1,220 @@
+# Orbit CI/CD for Azure Pipelines. Mirrors .github/workflows/ci.yml so the
+# repository can live in Azure Repos or GitHub with the same quality gates.
+# Setup and branch policies: docs/azure-devops.md
+
+trigger:
+  branches:
+    include: [main]
+
+pr:
+  branches:
+    include: ['*']
+
+parameters:
+  - name: deployStaging
+    displayName: Push images to the staging registry (main only)
+    type: boolean
+    default: false
+
+variables:
+  NODE_VERSION: 22.22.0
+  npm_config_cache: $(Pipeline.Workspace)/.npm
+  DATABASE_URL: postgresql://orbit:orbit@localhost:5432/orbit_test?schema=public
+  REDIS_URL: redis://localhost:6379
+  JWT_ACCESS_SECRET: ci-only-secret-that-is-longer-than-thirty-two-characters
+  CORS_ORIGINS: http://localhost:5173
+  WEB_APP_URL: http://localhost:5173
+  UPLOAD_DIR: ./data/test-uploads
+  EXPOSE_API_DOCS: 'false'
+  LOG_LEVEL: silent
+  CI: 'true'
+
+resources:
+  containers:
+    - container: postgres
+      image: postgres:16-alpine
+      env:
+        POSTGRES_USER: orbit
+        POSTGRES_PASSWORD: orbit
+        POSTGRES_DB: orbit_test
+      ports:
+        - 5432:5432
+      options: >-
+        --health-cmd "pg_isready -U orbit -d orbit_test"
+        --health-interval 5s --health-timeout 5s --health-retries 20
+    - container: redis
+      image: redis:7-alpine
+      ports:
+        - 6379:6379
+      options: >-
+        --health-cmd "redis-cli ping"
+        --health-interval 5s --health-timeout 5s --health-retries 20
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - stage: Quality
+    displayName: Quality and integration gates
+    jobs:
+      - job: quality
+        displayName: Lint, types, tests, build
+        timeoutInMinutes: 25
+        services:
+          postgres: postgres
+          redis: redis
+        steps:
+          - template: .azure-pipelines/templates/setup-workspace.yml
+
+          - script: npm run lint
+            displayName: Lint
+
+          - script: npm run typecheck
+            displayName: Typecheck
+
+          - script: >-
+              npm run test --workspace=@orbit/api --
+              --reporter=default --reporter=junit
+              --outputFile.junit=$(Common.TestResultsDirectory)/api-junit.xml
+            displayName: API unit and integration tests
+
+          - script: >-
+              npm run test --workspace=@orbit/web --
+              --reporter=default --reporter=junit
+              --outputFile.junit=$(Common.TestResultsDirectory)/web-junit.xml
+            displayName: Web unit tests
+
+          - script: >-
+              npm run test --workspace=@orbit/shared --
+              --reporter=default --reporter=junit
+              --outputFile.junit=$(Common.TestResultsDirectory)/shared-junit.xml
+            displayName: Shared package tests
+
+          - script: >-
+              npm run test --workspace=@orbit/site --
+              --reporter=default --reporter=junit
+              --outputFile.junit=$(Common.TestResultsDirectory)/site-junit.xml
+            displayName: Public site unit tests
+
+          - task: PublishTestResults@2
+            displayName: Publish unit test results
+            condition: succeededOrFailed()
+            inputs:
+              testResultsFormat: JUnit
+              testResultsFiles: '$(Common.TestResultsDirectory)/*-junit.xml'
+              testRunTitle: Unit and integration
+              mergeTestResults: true
+
+          - script: npm run build
+            displayName: Production build
+
+          - script: npm run format:check
+            displayName: Formatting
+
+          - script: npm audit --audit-level=high
+            displayName: Dependency vulnerability gate
+
+  - stage: Browser
+    displayName: Browser and accessibility gates
+    dependsOn: []
+    jobs:
+      - job: e2e
+        displayName: Playwright and axe
+        timeoutInMinutes: 25
+        services:
+          postgres: postgres
+          redis: redis
+        variables:
+          PLAYWRIGHT_JUNIT_OUTPUT_NAME: $(Common.TestResultsDirectory)/e2e-junit.xml
+        steps:
+          - template: .azure-pipelines/templates/setup-workspace.yml
+
+          - script: npx playwright install --with-deps chromium
+            displayName: Install Chromium
+
+          - script: npx playwright test --reporter=junit,list
+            displayName: Run browser tests
+
+          - script: npm run test:e2e --workspace=@orbit/site -- --reporter=junit,list
+            displayName: Run public site smoke tests
+            env:
+              PLAYWRIGHT_JUNIT_OUTPUT_NAME: $(Common.TestResultsDirectory)/site-e2e-junit.xml
+
+          - task: PublishTestResults@2
+            displayName: Publish browser test results
+            condition: succeededOrFailed()
+            inputs:
+              testResultsFormat: JUnit
+              testResultsFiles: '$(Common.TestResultsDirectory)/*e2e-junit.xml'
+              testRunTitle: Browser and accessibility
+
+          - publish: test-results
+            artifact: playwright-traces
+            displayName: Upload traces on failure
+            condition: failed()
+
+  - stage: Containers
+    displayName: Production containers
+    dependsOn: []
+    jobs:
+      - job: images
+        displayName: Validate Compose and build images
+        timeoutInMinutes: 30
+        steps:
+          - script: docker compose --env-file .env.production.example config --quiet
+            displayName: Validate production Compose configuration
+
+          - script: >-
+              COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file .env.production.example
+              build api worker web migrate seed
+            displayName: Build production images
+
+  - stage: Secrets
+    displayName: Secret scanning
+    dependsOn: []
+    jobs:
+      - job: gitleaks
+        displayName: Scan history with gitleaks
+        timeoutInMinutes: 10
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - script: >-
+              docker run --rm -v "$(Build.SourcesDirectory):/repo" zricethezav/gitleaks:v8.24.3
+              detect --source /repo --redact --no-banner
+            displayName: Scan repository history for secrets
+
+  - ${{ if eq(parameters.deployStaging, true) }}:
+      - stage: Staging
+        displayName: Publish staging images
+        dependsOn: [Quality, Browser, Containers, Secrets]
+        condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+        jobs:
+          - deployment: publish
+            displayName: Push images to Azure Container Registry
+            environment: orbit-staging
+            strategy:
+              runOnce:
+                deploy:
+                  steps:
+                    - checkout: self
+
+                    - task: Docker@2
+                      displayName: Log in to the container registry
+                      inputs:
+                        command: login
+                        containerRegistry: $(ACR_SERVICE_CONNECTION)
+
+                    - script: >-
+                        COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file .env.production.example
+                        build api worker web
+                      displayName: Build release images
+
+                    - script: |
+                        set -eu
+                        for service in api worker web; do
+                          docker tag "orbit-production-$service" "$(ACR_LOGIN_SERVER)/orbit-$service:$(Build.BuildId)"
+                          docker push "$(ACR_LOGIN_SERVER)/orbit-$service:$(Build.BuildId)"
+                        done
+                      displayName: Tag and push images

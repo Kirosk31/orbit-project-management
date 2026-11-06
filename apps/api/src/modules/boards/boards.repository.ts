@@ -1,4 +1,5 @@
 import type { Board, Column, Prisma, PrismaClient, TaskStatus } from '@prisma/client'
+import { writePositions } from '../../shared/database/reorder.js'
 
 export interface BoardRow extends Board {
   columnCount: number
@@ -166,9 +167,7 @@ export class PrismaBoardsRepository implements BoardsRepository {
         id,
         ...siblings.slice(clamped).map((s) => s.id),
       ]
-      for (let index = 0; index < ordered.length; index += 1) {
-        await tx.column.update({ where: { id: ordered[index] }, data: { position: index } })
-      }
+      await writePositions(tx, 'columns', ordered)
     })
   }
 

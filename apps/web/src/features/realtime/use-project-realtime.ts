@@ -22,6 +22,9 @@ const COMMENT_EVENTS: readonly ProjectRealtimeEventName[] = [
   'comment.reaction_updated',
 ]
 
+/** A realtime echo of our own write should not cancel and restart its refetch. */
+const KEEP_IN_FLIGHT = { cancelRefetch: false } as const
+
 export function useProjectRealtime(projectId: string): string[] {
   const accessToken = useAuthStore((state) => state.accessToken)
   const queryClient = useQueryClient()
@@ -50,26 +53,52 @@ export function useProjectRealtime(projectId: string): string[] {
     }
     const onTaskEvent = (event: ProjectRealtimeEvent): void => {
       if (event.projectId !== projectId) return
-      void queryClient.invalidateQueries({ queryKey: ['board-tasks'] })
+      void queryClient.invalidateQueries({ queryKey: ['board-tasks'] }, KEEP_IN_FLIGHT)
+      void queryClient.invalidateQueries({ queryKey: ['my-tasks'] }, KEEP_IN_FLIGHT)
+      void queryClient.invalidateQueries({ queryKey: ['project-tasks'] }, KEEP_IN_FLIGHT)
       if (event.taskId) {
-        void queryClient.invalidateQueries({ queryKey: ['task', event.taskId] })
-        void queryClient.invalidateQueries({ queryKey: ['task-subtasks', event.taskId] })
-        void queryClient.invalidateQueries({ queryKey: ['task-activity', event.taskId] })
-        void queryClient.invalidateQueries({ queryKey: ['task-checklists', event.taskId] })
-        void queryClient.invalidateQueries({ queryKey: ['task-time-entries', event.taskId] })
-        void queryClient.invalidateQueries({ queryKey: ['task-attachments', event.taskId] })
+        void queryClient.invalidateQueries({ queryKey: ['task', event.taskId] }, KEEP_IN_FLIGHT)
+        void queryClient.invalidateQueries(
+          { queryKey: ['task-subtasks', event.taskId] },
+          KEEP_IN_FLIGHT,
+        )
+        void queryClient.invalidateQueries(
+          { queryKey: ['task-activity', event.taskId] },
+          KEEP_IN_FLIGHT,
+        )
+        void queryClient.invalidateQueries(
+          { queryKey: ['task-checklists', event.taskId] },
+          KEEP_IN_FLIGHT,
+        )
+        void queryClient.invalidateQueries(
+          { queryKey: ['task-time-entries', event.taskId] },
+          KEEP_IN_FLIGHT,
+        )
+        void queryClient.invalidateQueries(
+          { queryKey: ['task-attachments', event.taskId] },
+          KEEP_IN_FLIGHT,
+        )
       }
     }
     const onCommentEvent = (event: ProjectRealtimeEvent): void => {
       if (event.projectId !== projectId || !event.taskId) return
-      void queryClient.invalidateQueries({ queryKey: ['task-comments', event.taskId] })
-      void queryClient.invalidateQueries({ queryKey: ['task-activity', event.taskId] })
+      void queryClient.invalidateQueries(
+        { queryKey: ['task-comments', event.taskId] },
+        KEEP_IN_FLIGHT,
+      )
+      void queryClient.invalidateQueries(
+        { queryKey: ['task-activity', event.taskId] },
+        KEEP_IN_FLIGHT,
+      )
     }
     const onBoardEvent = (event: ProjectRealtimeEvent): void => {
       if (event.projectId !== projectId) return
-      void queryClient.invalidateQueries({ queryKey: ['board'] })
-      void queryClient.invalidateQueries({ queryKey: ['board-columns'] })
-      void queryClient.invalidateQueries({ queryKey: ['project-boards', projectId] })
+      void queryClient.invalidateQueries({ queryKey: ['board'] }, KEEP_IN_FLIGHT)
+      void queryClient.invalidateQueries({ queryKey: ['board-columns'] }, KEEP_IN_FLIGHT)
+      void queryClient.invalidateQueries(
+        { queryKey: ['project-boards', projectId] },
+        KEEP_IN_FLIGHT,
+      )
     }
 
     socket.on('connect', subscribe)
