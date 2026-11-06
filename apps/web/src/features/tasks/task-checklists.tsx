@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
+import { toggleChecklistItem } from '@/lib/optimistic'
 import {
   createChecklistItemRequest,
   createChecklistRequest,
@@ -342,8 +343,19 @@ export function TaskChecklists({ taskId }: { taskId: string }): ReactNode {
       itemId: string
       isCompleted: boolean
     }) => updateChecklistItemRequest(taskId, checklistId, itemId, { isCompleted }),
+    onMutate: async ({ checklistId, itemId, isCompleted }) => {
+      await queryClient.cancelQueries({ queryKey })
+      const previous = queryClient.getQueryData<ChecklistDto[]>(queryKey)
+      queryClient.setQueryData<ChecklistDto[]>(queryKey, (current) =>
+        toggleChecklistItem(current, checklistId, itemId, isCompleted),
+      )
+      return { previous }
+    },
     onSuccess: replaceChecklist,
-    onError: showError,
+    onError: (_error, _input, context) => {
+      if (context?.previous) queryClient.setQueryData(queryKey, context.previous)
+      showError()
+    },
   })
   const deleteItemMutation = useMutation({
     mutationFn: ({ checklistId, itemId }: { checklistId: string; itemId: string }) =>

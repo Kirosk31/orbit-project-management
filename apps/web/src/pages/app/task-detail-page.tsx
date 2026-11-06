@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createLabelSchema } from '@orbit/shared'
-import type { updateTaskSchema } from '@orbit/shared'
+import type { TaskDto, updateTaskSchema } from '@orbit/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
@@ -26,6 +26,7 @@ import { ColorSwatchPicker } from '@/components/shared/color-swatch-picker'
 import { DateField } from '@/components/shared/date-field'
 import { EmptyState, PageContainer } from '@/components/shared/page'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { setTaskCompletion } from '@/lib/optimistic'
 import { CompletionMark } from '@/features/tasks/completion-mark'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -192,12 +193,25 @@ export function TaskDetailPage(): ReactNode {
 
   const updateMutation = useMutation({
     mutationFn: (input: z.output<typeof updateTaskSchema>) => updateTaskRequest(taskId, input),
+    // Completing shows (and glazes) at once; other edits wait for the server.
+    onMutate: async (input) => {
+      if (input.isCompleted === undefined) return undefined
+      await queryClient.cancelQueries({ queryKey: ['task', taskId] })
+      const previous = queryClient.getQueryData<TaskDto>(['task', taskId])
+      queryClient.setQueryData<TaskDto>(['task', taskId], (current) =>
+        setTaskCompletion(current, input.isCompleted!),
+      )
+      return { previous }
+    },
     onSuccess: () => {
       invalidate()
       setEditingTitle(false)
       toast.success(t('tasks.updated'))
     },
-    onError: () => toast.error(t('auth.genericError')),
+    onError: (_error, _input, context) => {
+      if (context?.previous) queryClient.setQueryData(['task', taskId], context.previous)
+      toast.error(t('auth.genericError'))
+    },
   })
 
   const archiveMutation = useMutation({

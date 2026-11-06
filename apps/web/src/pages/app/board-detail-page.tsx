@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createColumnSchema, createTaskSchema, updateBoardSchema } from '@orbit/shared'
-import type { SavedTaskFilterValues, TaskDto } from '@orbit/shared'
+import type { ColumnDto, SavedTaskFilterValues, TaskDto } from '@orbit/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArchiveIcon,
@@ -27,7 +27,9 @@ import { ColorSwatchPicker } from '@/components/shared/color-swatch-picker'
 import { EmptyState, PageContainer, PageHeader } from '@/components/shared/page'
 import { TilePanel } from '@orbit/brand'
 import { CompletionMark } from '@/features/tasks/completion-mark'
+import type { TaskListResult } from '@/features/tasks/task-api'
 import { useHotkeys } from '@/hooks/use-hotkeys'
+import { moveTaskInList, shiftColumnCounts } from '@/lib/optimistic'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -257,11 +259,39 @@ export function BoardDetailPage(): ReactNode {
   const moveTaskMutation = useMutation({
     mutationFn: (input: { taskId: string; columnId: string }) =>
       moveTaskRequest(input.taskId, { columnId: input.columnId }),
-    onSuccess: () => {
-      invalidate()
-      toast.success(t('tasks.cardMoved'))
+    // The card lands immediately; the server confirms in the background.
+    onMutate: async ({ taskId, columnId }) => {
+      const target = columnsQuery.data?.find((column) => column.id === columnId)
+      await queryClient.cancelQueries({ queryKey: ['board-tasks', boardId] })
+      await queryClient.cancelQueries({ queryKey: ['board-columns', boardId] })
+      const previousTasks = queryClient.getQueriesData<TaskListResult>({
+        queryKey: ['board-tasks', boardId],
+      })
+      const previousColumns = queryClient.getQueryData<ColumnDto[]>(['board-columns', boardId])
+      const fromColumnId =
+        previousTasks.flatMap(([, data]) => data?.rows ?? []).find((task) => task.id === taskId)
+          ?.columnId ?? null
+      if (target) {
+        queryClient.setQueriesData<TaskListResult>({ queryKey: ['board-tasks', boardId] }, (list) =>
+          moveTaskInList(list, taskId, target),
+        )
+        queryClient.setQueryData<ColumnDto[]>(['board-columns', boardId], (columns) =>
+          shiftColumnCounts(columns, fromColumnId, columnId),
+        )
+      }
+      return { previousTasks, previousColumns }
     },
-    onError: () => toast.error(t('auth.genericError')),
+    onError: (_error, _input, context) => {
+      context?.previousTasks.forEach(([key, data]) => queryClient.setQueryData(key, data))
+      queryClient.setQueryData(['board-columns', boardId], context?.previousColumns)
+      toast.error(t('auth.genericError'))
+    },
+    onSuccess: () => toast.success(t('tasks.cardMoved')),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['board-tasks', boardId] })
+      void queryClient.invalidateQueries({ queryKey: ['board-columns', boardId] })
+      void queryClient.invalidateQueries({ queryKey: ['my-tasks'] })
+    },
   })
 
   const columns = columnsQuery.data ?? []
