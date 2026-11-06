@@ -87,6 +87,7 @@ describe('application configuration', () => {
           RATE_LIMIT_UPLOAD_MAX: '4',
           RATE_LIMIT_SEARCH_MAX: '30',
           RATE_LIMIT_ANALYTICS_MAX: '12',
+          RATE_LIMIT_RUM_MAX: '50',
         }),
       ),
     )
@@ -96,6 +97,7 @@ describe('application configuration', () => {
       upload: { max: 4, windowSeconds: 120 },
       search: { max: 30, windowSeconds: 120 },
       analytics: { max: 12, windowSeconds: 120 },
+      rum: { max: 50, windowSeconds: 120 },
     })
   })
 })

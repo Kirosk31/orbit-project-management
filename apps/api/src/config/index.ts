@@ -32,6 +32,7 @@ export interface AppConfig {
       upload: RateLimitConfig
       search: RateLimitConfig
       analytics: RateLimitConfig
+      rum: RateLimitConfig
     }
   }
   billing: {
@@ -98,6 +99,7 @@ export function createConfig(env: Env = parseEnv()): AppConfig {
         upload: { max: env.RATE_LIMIT_UPLOAD_MAX, windowSeconds: applicationWindowSeconds },
         search: { max: env.RATE_LIMIT_SEARCH_MAX, windowSeconds: applicationWindowSeconds },
         analytics: { max: env.RATE_LIMIT_ANALYTICS_MAX, windowSeconds: applicationWindowSeconds },
+        rum: { max: env.RATE_LIMIT_RUM_MAX, windowSeconds: applicationWindowSeconds },
       },
     },
     billing: {

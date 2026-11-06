@@ -33,6 +33,7 @@ const envSchema = z.object({
   RATE_LIMIT_UPLOAD_MAX: z.coerce.number().int().min(1).default(10),
   RATE_LIMIT_SEARCH_MAX: z.coerce.number().int().min(1).default(60),
   RATE_LIMIT_ANALYTICS_MAX: z.coerce.number().int().min(1).default(30),
+  RATE_LIMIT_RUM_MAX: z.coerce.number().int().min(1).default(60),
   TRUST_PROXY: z
     .string()
     .trim()

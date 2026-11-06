@@ -42,6 +42,7 @@ import type { SearchService } from './modules/search/search.service.js'
 import type { AnalyticsService } from './modules/analytics/analytics.service.js'
 import { createDocsRouter } from './modules/docs/docs.routes.js'
 import { createApiRouter } from './routes.js'
+import { createRumRouter, RUM_PATH } from './modules/rum/rum.routes.js'
 import type { BillingService } from './modules/billing/billing.service.js'
 
 export interface AppDependencies {
@@ -76,6 +77,11 @@ export interface AppDependencies {
   billingService: BillingService
 }
 
+function isRumRequest(req: { method?: string; url?: string }): boolean {
+  const path = ((req as express.Request).originalUrl ?? req.url ?? '').split('?', 1)[0]
+  return req.method === 'POST' && path === RUM_PATH
+}
+
 export function createApp(deps: AppDependencies): Express {
   const app = express()
 
@@ -91,10 +97,25 @@ export function createApp(deps: AppDependencies): Express {
     pinoHttp({
       logger: deps.logger,
       genReqId: (req) => (req as Express.Request).requestId ?? randomUUID(),
+      customLogLevel: (req, res, error) => {
+        // Accepted Web Vitals beacons are logged once, by the RUM router, without
+        // the request's IP and headers; rejected ones still show up here.
+        if (!error && res.statusCode < 400 && isRumRequest(req)) return 'silent'
+        return 'info'
+      },
     }),
   )
   app.use(helmet())
   app.use(createCorsMiddleware(deps.config.cors))
+  // Ahead of the 1 MB body parser and the CSRF check: see createRumRouter.
+  app.use(
+    RUM_PATH,
+    createRumRouter({
+      logger: deps.logger,
+      rateLimiterService: deps.rateLimiterService,
+      rateLimit: deps.config.rateLimit.application.rum,
+    }),
+  )
   app.use(express.json({ limit: '1mb' }))
   app.use(cookieParser())
 

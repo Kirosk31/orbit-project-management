@@ -149,6 +149,9 @@ All paths below are relative to `/api/v1`.
 | `GET`  | `/search?q=...`                          | Tenant-aware global search with type/org filters and pagination |
 | `GET`  | `/organizations/:slug/analytics?days=30` | Permission-scoped 7–90 day delivery analytics                   |
 | `GET`  | `/health` and `/health/ready`            | API probes, also available outside `/api/v1`                    |
+| `POST` | `/rum`                                   | Anonymous Web Vitals beacon (LCP, INP, CLS); see below          |
+
+`POST /rum` takes `{ route, metrics: [{ name, value, rating, navigationType? }] }` from `navigator.sendBeacon`. It is strict (unknown fields are rejected), capped at 4 KB, rate-limited per IP (`RATE_LIMIT_RUM_MAX`), and answers `204`. The route is reduced to a screen template such as `/app/boards/:id` before logging, and the log line carries no IP, user agent, user or session. Because `sendBeacon` cannot send headers, this one endpoint is mounted ahead of the CSRF check; it reads no cookie and changes no state.
 
 ## Realtime protocol
 
@@ -167,7 +170,7 @@ Server events include `task.created`, `task.updated`, `task.deleted`, `task.move
 
 ## Rate limits
 
-Rate-limit values are environment-controlled. Separate buckets exist for global API traffic, login, registration, refresh, recovery, token consumption, invitations, uploads, search, and analytics. Sensitive application buckets can key on the authenticated user rather than only an IP. Exceeding a limit returns HTTP `429` without revealing account existence.
+Rate-limit values are environment-controlled. Separate buckets exist for global API traffic, login, registration, refresh, recovery, token consumption, invitations, uploads, search, analytics, and Web Vitals beacons. Sensitive application buckets can key on the authenticated user rather than only an IP. Exceeding a limit returns HTTP `429` without revealing account existence.
 
 ## Authorization behavior
 
