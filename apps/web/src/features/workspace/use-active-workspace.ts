@@ -41,7 +41,8 @@ export function useActiveWorkspace(): {
   setActiveSlug: (slug: string) => void
   isLoading: boolean
 } {
-  const { activeSlug, setActiveSlug } = useWorkspaceStore()
+  const activeSlug = useWorkspaceStore((state) => state.activeSlug)
+  const setActiveSlug = useWorkspaceStore((state) => state.setActiveSlug)
   const query = useQuery({ queryKey: ['organizations'], queryFn: listOrganizationsRequest })
   const organizations = query.data ?? []
   return {

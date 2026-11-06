@@ -21,7 +21,8 @@ const THEME_OPTIONS: Array<{ value: ThemePreference; label: TranslationKey; icon
 
 export function ThemeToggle(): ReactNode {
   const { t } = useTranslation()
-  const { theme, setTheme } = useThemeStore()
+  const theme = useThemeStore((state) => state.theme)
+  const setTheme = useThemeStore((state) => state.setTheme)
   const resolved = useResolvedTheme()
 
   const CurrentIcon = resolved === 'dark' ? MoonIcon : SunIcon
