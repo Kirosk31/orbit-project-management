@@ -3,13 +3,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRightIcon, CircleCheckIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router'
-import type { ReactNode } from 'react'
+import { Suspense, lazy, type ReactNode } from 'react'
 
 import { EmptyState, PageContainer, PageHeader, SectionHeader } from '@/components/shared/page'
 import { TilePanel } from '@orbit/brand'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { AnalyticsDashboard } from '@/features/analytics/analytics-dashboard'
 import { organizationAnalyticsRequest } from '@/features/analytics/analytics-api'
 import { useAuthStore } from '@/features/auth/auth-store'
 import { NotificationRow } from '@/features/notification-row'
@@ -22,6 +21,13 @@ import { listMyTasksRequest } from '@/features/tasks/task-api'
 import { useProjectTasks } from '@/features/tasks/use-project-tasks'
 import { DueDate, PriorityMark } from '@/features/tasks/task-meta'
 import { dueStateOf } from '@/lib/due'
+
+// Charts (recharts) are the heaviest part of Today and sit below the fold.
+const AnalyticsDashboard = lazy(() =>
+  import('@/features/analytics/analytics-dashboard').then((module) => ({
+    default: module.AnalyticsDashboard,
+  })),
+)
 import { tilesFromTasks } from '@/lib/tiles'
 
 const MAX_PROJECTS = 8
@@ -303,11 +309,13 @@ export function DashboardPage(): ReactNode {
 
       {activeOrg && !showOnboarding ? (
         <div className="mt-14 border-t pt-10">
-          <AnalyticsDashboard
-            data={analyticsQuery.data}
-            isLoading={analyticsQuery.isLoading}
-            isError={analyticsQuery.isError}
-          />
+          <Suspense fallback={<Skeleton className="h-80 rounded-lg" />}>
+            <AnalyticsDashboard
+              data={analyticsQuery.data}
+              isLoading={analyticsQuery.isLoading}
+              isError={analyticsQuery.isError}
+            />
+          </Suspense>
         </div>
       ) : null}
     </PageContainer>

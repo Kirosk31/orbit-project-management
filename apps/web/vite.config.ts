@@ -35,27 +35,8 @@ export default defineConfig({
           ) {
             return 'vendor-data'
           }
-          if (
-            [
-              '/node_modules/@hookform/',
-              '/node_modules/react-hook-form/',
-              '/node_modules/zod/',
-            ].some((dependency) => moduleId.includes(dependency))
-          ) {
-            return 'vendor-forms'
-          }
-          if (
-            [
-              '/node_modules/@radix-ui/',
-              '/node_modules/cmdk/',
-              '/node_modules/framer-motion/',
-              '/node_modules/lucide-react/',
-              '/node_modules/sonner/',
-            ].some((dependency) => moduleId.includes(dependency))
-          ) {
-            return 'vendor-ui'
-          }
-
+          // Everything else (Radix, forms, cmdk, framer-motion, recharts) is left to
+          // Rollup so each route preloads only the libraries it actually imports.
           return undefined
         },
       },

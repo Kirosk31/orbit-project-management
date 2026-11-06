@@ -1,4 +1,5 @@
 import type { OrganizationAnalyticsDto, OrganizationAnalyticsQuery } from '@orbit/shared'
+import type { CacheService } from '../../shared/cache/CacheService.js'
 import type { AnalyticsRepository } from './analytics.repository.js'
 
 const DAY_MS = 24 * 60 * 60 * 1_000
@@ -11,10 +12,33 @@ function percentage(completed: number, total: number): number {
   return total === 0 ? 0 : Math.round((completed / total) * 100)
 }
 
-export class AnalyticsService {
-  constructor(private readonly repository: AnalyticsRepository) {}
+/** Dashboards may lag the board by this much; the aggregates scan every task. */
+export const ANALYTICS_CACHE_SECONDS = 60
 
+export class AnalyticsService {
+  constructor(
+    private readonly repository: AnalyticsRepository,
+    private readonly cache?: CacheService,
+  ) {}
+
+  /**
+   * The snapshot depends only on the organization and the period, and the
+   * route has already checked org.dashboard.view, so one cached copy serves every
+   * member. A cache outage falls through to the database.
+   */
   async organizationAnalytics(
+    orgId: string,
+    query: OrganizationAnalyticsQuery,
+  ): Promise<OrganizationAnalyticsDto> {
+    const key = `analytics:org:${orgId}:days:${query.days}`
+    const cached = await this.cache?.get<OrganizationAnalyticsDto>(key).catch(() => null)
+    if (cached) return cached
+    const fresh = await this.computeOrganizationAnalytics(orgId, query)
+    await this.cache?.set(key, fresh, ANALYTICS_CACHE_SECONDS).catch(() => undefined)
+    return fresh
+  }
+
+  private async computeOrganizationAnalytics(
     orgId: string,
     query: OrganizationAnalyticsQuery,
   ): Promise<OrganizationAnalyticsDto> {

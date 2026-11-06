@@ -194,7 +194,7 @@ async function bootstrap(): Promise<void> {
   })
   const taskFiltersService = new TaskFiltersService(new PrismaTaskFiltersRepository(prisma))
   const searchService = new SearchService(new PrismaSearchRepository(prisma))
-  const analyticsService = new AnalyticsService(new PrismaAnalyticsRepository(prisma))
+  const analyticsService = new AnalyticsService(new PrismaAnalyticsRepository(prisma), cacheService)
   const commentsRepository = new PrismaCommentsRepository(prisma)
   const commentsService = new CommentsService({
     repository: commentsRepository,

@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { createLabelSchema } from '@orbit/shared'
 import type { TaskDto, updateTaskSchema } from '@orbit/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { motion } from 'framer-motion'
+import { MotionConfig, motion } from 'framer-motion'
 import {
   ArchiveIcon,
   ArrowLeftIcon,
@@ -350,22 +350,24 @@ export function TaskDetailPage(): ReactNode {
       <div className="grid gap-x-12 gap-y-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <article className="min-w-0">
           <header className="mb-8 flex items-start gap-3">
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.9 }}
-              aria-pressed={task.isCompleted}
-              aria-label={task.isCompleted ? t('tasks.incomplete') : t('tasks.complete')}
-              title={task.isCompleted ? t('tasks.incomplete') : t('tasks.complete')}
-              onClick={() => updateMutation.mutate({ isCompleted: !task.isCompleted })}
-              className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-md transition-colors duration-200 hover:bg-accent"
-            >
-              <CompletionMark
-                completed={task.isCompleted}
-                size={28}
-                turn={90}
-                completedAt={task.completedAt}
-              />
-            </motion.button>
+            <MotionConfig reducedMotion="user">
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.9 }}
+                aria-pressed={task.isCompleted}
+                aria-label={task.isCompleted ? t('tasks.incomplete') : t('tasks.complete')}
+                title={task.isCompleted ? t('tasks.incomplete') : t('tasks.complete')}
+                onClick={() => updateMutation.mutate({ isCompleted: !task.isCompleted })}
+                className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-md transition-colors duration-200 hover:bg-accent"
+              >
+                <CompletionMark
+                  completed={task.isCompleted}
+                  size={28}
+                  turn={90}
+                  completedAt={task.completedAt}
+                />
+              </motion.button>
+            </MotionConfig>
             <div className="min-w-0 flex-1">
               {editingTitle ? (
                 <form

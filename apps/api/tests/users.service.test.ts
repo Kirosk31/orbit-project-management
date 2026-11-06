@@ -3,7 +3,7 @@ import type { User as UserRow, UserPreference } from '@prisma/client'
 import sharp from 'sharp'
 import { isAppError } from '../src/core/errors/index.js'
 import { createLogger } from '../src/core/logger/logger.js'
-import { UsersService } from '../src/modules/users/users.service.js'
+import { AVATAR_OUTPUT_DIMENSION, UsersService } from '../src/modules/users/users.service.js'
 import type { UsersRepository } from '../src/modules/users/users.repository.js'
 import type { StorageService } from '../src/shared/storage/storage.js'
 
@@ -110,12 +110,13 @@ function createService(): {
   calls: ReturnType<typeof createFakeRepository>['calls']
   stored: Array<{ key: string; mimeType: string }>
   deleted: string[]
+  storage: StorageService
 } {
   const { repository, calls } = createFakeRepository()
   const { storage, stored, deleted } = createStorage()
   const logger = createLogger({ level: 'silent', isProduction: false })
   const service = new UsersService({ repository, storage, logger })
-  return { service, repository, calls, stored, deleted }
+  return { service, repository, calls, stored, deleted, storage }
 }
 
 async function createImage(
@@ -177,10 +178,25 @@ describe('UsersService', () => {
 
       expect(stored).toHaveLength(1)
       expect(stored[0]).toMatchObject({
-        key: expect.stringMatching(/^avatars\/user-1\/.+/),
-        mimeType: 'image/jpeg',
+        key: expect.stringMatching(/^avatars\/user-1\/.+\.webp$/),
+        mimeType: 'image/webp',
       })
       expect(user.avatarKey).toBe(stored[0]!.key)
+    })
+
+    it('re-encodes any accepted format as a small WebP', async () => {
+      const { service, storage } = createService()
+      const putSpy = vi.spyOn(storage, 'put')
+
+      await service.uploadAvatar('user-1', {
+        buffer: await createImage('png', 1_200, 1_200),
+        mimeType: 'image/png',
+      })
+
+      const written = putSpy.mock.calls[0]![1] as Buffer
+      const meta = await sharp(written).metadata()
+      expect(meta.format).toBe('webp')
+      expect(meta.width).toBe(AVATAR_OUTPUT_DIMENSION)
     })
 
     it('rejects unsupported image types', async () => {
