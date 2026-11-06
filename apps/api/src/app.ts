@@ -1,10 +1,9 @@
-import { randomUUID } from 'node:crypto'
 import cookieParser from 'cookie-parser'
 import express, { type Express } from 'express'
 import helmet from 'helmet'
-import { pinoHttp } from 'pino-http'
 import type { AppConfig } from './config/index.js'
 import type { Logger } from './core/logger/logger.js'
+import { createHttpLogger } from './core/logger/http-logger.js'
 import type { CacheService } from './shared/cache/CacheService.js'
 import {
   createCorsMiddleware,
@@ -77,11 +76,6 @@ export interface AppDependencies {
   billingService: BillingService
 }
 
-function isRumRequest(req: { method?: string; url?: string }): boolean {
-  const path = ((req as express.Request).originalUrl ?? req.url ?? '').split('?', 1)[0]
-  return req.method === 'POST' && path === RUM_PATH
-}
-
 export function createApp(deps: AppDependencies): Express {
   const app = express()
 
@@ -93,18 +87,7 @@ export function createApp(deps: AppDependencies): Express {
   }
 
   app.use(requestIdMiddleware)
-  app.use(
-    pinoHttp({
-      logger: deps.logger,
-      genReqId: (req) => (req as Express.Request).requestId ?? randomUUID(),
-      customLogLevel: (req, res, error) => {
-        // Accepted Web Vitals beacons are logged once, by the RUM router, without
-        // the request's IP and headers; rejected ones still show up here.
-        if (!error && res.statusCode < 400 && isRumRequest(req)) return 'silent'
-        return 'info'
-      },
-    }),
-  )
+  app.use(createHttpLogger(deps.logger, RUM_PATH))
   app.use(helmet())
   app.use(createCorsMiddleware(deps.config.cors))
   // Ahead of the 1 MB body parser and the CSRF check: see createRumRouter.
