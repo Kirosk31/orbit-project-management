@@ -113,6 +113,8 @@ function createFakeRepository(overrides: Partial<TasksRepository> = {}): TasksRe
     removeLabel: vi.fn(async () => undefined),
     listLabels: vi.fn(async () => []),
     findLabelById: vi.fn(async () => makeLabel()),
+    countOrgLabels: vi.fn(async (_orgId: string, ids: readonly string[]) => ids.length),
+    countLabelTasks: vi.fn(async () => 0),
     createLabel: vi.fn(async (_orgId, data) => makeLabel(data as Partial<Label>)),
     updateLabel: vi.fn(async (_id, data) => makeLabel(data as Partial<Label>)),
     softDeleteLabel: vi.fn(async () => undefined),
@@ -179,6 +181,7 @@ function buildService(
   const boards = createFakeBoards(overrides.boards)
   const organizations = {
     getMembership: vi.fn(async () => null),
+    countActiveMembers: vi.fn(async (_orgId: string, ids: readonly string[]) => ids.length),
     ...overrides.organizations,
   } as unknown as OrganizationsRepository
   const notifications = createFakeNotifications(overrides.notifications)
@@ -573,7 +576,10 @@ describe('TasksService', () => {
   it('rejects assignees that are not org members', async () => {
     const { service } = buildService({
       boards: { findDefaultStatus: vi.fn(async () => makeStatus()) },
-      organizations: { getMembership: vi.fn(async () => null) },
+      organizations: {
+        getMembership: vi.fn(async () => null),
+        countActiveMembers: vi.fn(async () => 0),
+      },
     })
 
     const promise = service.createTask('project-1', 'org-1', 'user-1', {

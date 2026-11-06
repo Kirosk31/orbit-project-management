@@ -481,7 +481,7 @@ export class TasksService {
   async updateLabel(labelId: string, orgId: string, dto: UpdateLabelDto): Promise<LabelDto> {
     const label = await this.findLabel(labelId, orgId)
     const updated = await this.deps.repository.updateLabel(label.id, dto)
-    const count = await this.findLabelTaskCount(orgId, updated.id)
+    const count = await this.findLabelTaskCount(updated.id)
     return this.toLabelDto(updated, count)
   }
 
@@ -525,30 +525,29 @@ export class TasksService {
   }
 
   private async verifyOrgMembers(orgId: string, userIds: string[]): Promise<void> {
-    for (const userId of userIds) {
-      const membership = await this.deps.organizations.getMembership(orgId, userId)
-      if (!membership || !membership.isActive) {
-        throw badRequest('One or more assignees are not members of this organization', {
-          field: 'assigneeIds',
-        })
-      }
+    const unique = [...new Set(userIds)]
+    if (unique.length === 0) return
+    const active = await this.deps.organizations.countActiveMembers(orgId, unique)
+    if (active !== unique.length) {
+      throw badRequest('One or more assignees are not members of this organization', {
+        field: 'assigneeIds',
+      })
     }
   }
 
   private async verifyOrgLabels(orgId: string, labelIds: string[]): Promise<void> {
-    for (const labelId of labelIds) {
-      const label = await this.deps.repository.findLabelById(labelId)
-      if (!label || label.orgId !== orgId) {
-        throw badRequest('One or more labels do not belong to this organization', {
-          field: 'labelIds',
-        })
-      }
+    const unique = [...new Set(labelIds)]
+    if (unique.length === 0) return
+    const found = await this.deps.repository.countOrgLabels(orgId, unique)
+    if (found !== unique.length) {
+      throw badRequest('One or more labels do not belong to this organization', {
+        field: 'labelIds',
+      })
     }
   }
 
-  private async findLabelTaskCount(orgId: string, labelId: string): Promise<number> {
-    const labels = await this.deps.repository.listLabels(orgId)
-    return labels.find((item) => item.id === labelId)?.taskCount ?? 0
+  private findLabelTaskCount(labelId: string): Promise<number> {
+    return this.deps.repository.countLabelTasks(labelId)
   }
 
   private async findTask(taskId: string) {

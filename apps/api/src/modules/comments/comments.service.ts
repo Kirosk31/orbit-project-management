@@ -145,13 +145,13 @@ export class CommentsService {
   }
 
   private async verifyOrgMembers(orgId: string, userIds: string[]): Promise<void> {
-    for (const userId of userIds) {
-      const membership = await this.deps.organizations.getMembership(orgId, userId)
-      if (!membership || !membership.isActive) {
-        throw badRequest('One or more mentioned users are not members of this organization', {
-          field: 'mentionIds',
-        })
-      }
+    const unique = [...new Set(userIds)]
+    if (unique.length === 0) return
+    const active = await this.deps.organizations.countActiveMembers(orgId, unique)
+    if (active !== unique.length) {
+      throw badRequest('One or more mentioned users are not members of this organization', {
+        field: 'mentionIds',
+      })
     }
   }
 

@@ -1,4 +1,5 @@
 import type { Label, Prisma, PrismaClient, Task } from '@prisma/client'
+import { writePositions } from '../../shared/database/reorder.js'
 import type { TaskPriority } from '@orbit/shared'
 
 export interface TaskRow extends Task {
@@ -101,6 +102,8 @@ export interface TasksRepository {
   removeLabel(taskId: string, labelId: string): Promise<void>
   listLabels(orgId: string): Promise<Array<Label & { taskCount: number }>>
   findLabelById(id: string): Promise<Label | null>
+  countOrgLabels(orgId: string, labelIds: readonly string[]): Promise<number>
+  countLabelTasks(labelId: string): Promise<number>
   createLabel(orgId: string, data: { name: string; color: string }): Promise<Label>
   updateLabel(id: string, data: { name?: string; color?: string }): Promise<Label>
   softDeleteLabel(id: string): Promise<void>
@@ -347,9 +350,7 @@ export class PrismaTasksRepository implements TasksRepository {
         taskId,
         ...siblings.slice(clamped).map((s) => s.id),
       ]
-      for (let index = 0; index < ordered.length; index += 1) {
-        await tx.task.update({ where: { id: ordered[index] }, data: { position: index } })
-      }
+      await writePositions(tx, 'tasks', ordered)
       return tx.task.update({
         where: { id: taskId },
         data: { boardId: nextBoardId, columnId: nextColumnId, statusId: nextStatusId },
@@ -387,6 +388,14 @@ export class PrismaTasksRepository implements TasksRepository {
 
   findLabelById(id: string) {
     return this.prisma.label.findFirst({ where: { id, deletedAt: null } })
+  }
+
+  countOrgLabels(orgId: string, labelIds: readonly string[]) {
+    return this.prisma.label.count({ where: { orgId, id: { in: [...labelIds] }, deletedAt: null } })
+  }
+
+  countLabelTasks(labelId: string) {
+    return this.prisma.taskLabel.count({ where: { labelId } })
   }
 
   createLabel(orgId: string, data: { name: string; color: string }) {

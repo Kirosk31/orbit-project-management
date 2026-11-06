@@ -97,6 +97,7 @@ function createFakeRepository(overrides: Partial<OrganizationsRepository> = {}) 
     softDeleteOrg: vi.fn(async () => undefined),
     listOrgsForUser: vi.fn(async () => [{ ...makeOrg(), roleKey: 'OWNER', memberCount: 3 }]),
     getMembership: vi.fn(async () => null),
+    countActiveMembers: vi.fn(async () => 0),
     countMembers: vi.fn(async () => 1),
     listMembers: vi.fn(async () => [
       {

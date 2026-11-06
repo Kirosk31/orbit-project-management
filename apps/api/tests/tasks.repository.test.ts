@@ -16,7 +16,7 @@ describe('PrismaTasksRepository.moveTask', () => {
     const findMany = vi.fn(async () => [{ id: 'task-sibling' }])
     const update = vi.fn(async () => task)
     const transaction = vi.fn(async (callback: (tx: unknown) => Promise<Task>) =>
-      callback({ task: { findUnique, findMany, update } }),
+      callback({ task: { findUnique, findMany, update }, $executeRaw: vi.fn(async () => 2) }),
     )
     const prisma = { $transaction: transaction } as unknown as PrismaClient
     const repository = new PrismaTasksRepository(prisma)
