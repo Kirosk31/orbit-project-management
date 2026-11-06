@@ -13,7 +13,7 @@ function wait(ms: number): Promise<void> {
 async function bootstrap(): Promise<void> {
   const config = createConfig()
   const logger = createLogger({ level: config.env.LOG_LEVEL, isProduction: config.isProduction })
-  const prisma = getPrisma()
+  const prisma = getPrisma(config.env.DATABASE_POOL_MAX)
   await prisma.$queryRaw`SELECT 1`
 
   const codec = new OutboxEventCodec(

@@ -13,6 +13,13 @@ function validEnv(overrides: Record<string, string> = {}) {
 }
 
 describe('application configuration', () => {
+  it('sizes the database pool at 10 unless DATABASE_POOL_MAX says otherwise', () => {
+    expect(parseEnv(validEnv()).DATABASE_POOL_MAX).toBe(10)
+    expect(parseEnv(validEnv({ DATABASE_POOL_MAX: '25' })).DATABASE_POOL_MAX).toBe(25)
+    expect(() => parseEnv(validEnv({ DATABASE_POOL_MAX: '0' }))).toThrow(/DATABASE_POOL_MAX/)
+    expect(() => parseEnv(validEnv({ DATABASE_POOL_MAX: 'many' }))).toThrow(/DATABASE_POOL_MAX/)
+  })
+
   it('does not trust forwarded addresses by default', () => {
     const config = createConfig(parseEnv(validEnv()))
 

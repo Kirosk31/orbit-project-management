@@ -80,6 +80,7 @@ services:
       PORT: 4000
       LOG_LEVEL: ${LOG_LEVEL:-info}
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env.production}
+      DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-10}
       REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env.production}
       CORS_ORIGINS: ${APP_URL:?Set APP_URL in .env.production}
       WEB_APP_URL: ${APP_URL:?Set APP_URL in .env.production}
@@ -132,6 +133,7 @@ services:
       NODE_ENV: production
       LOG_LEVEL: ${LOG_LEVEL:-info}
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env.production}
+      DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-10}
       REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env.production}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Set JWT_ACCESS_SECRET in .env.production}
       OUTBOX_ENCRYPTION_KEY: ${OUTBOX_ENCRYPTION_KEY:?Set OUTBOX_ENCRYPTION_KEY in .env.production}

@@ -98,7 +98,7 @@ async function bootstrap(): Promise<void> {
     logger,
   )
 
-  const prisma = getPrisma()
+  const prisma = getPrisma(config.env.DATABASE_POOL_MAX)
   await connectWithRetry(
     'database',
     async () => {
