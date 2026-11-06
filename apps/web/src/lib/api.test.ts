@@ -257,3 +257,20 @@ describe('session refresh', () => {
     expect(onExpired).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('request timeouts', () => {
+  it('gives every JSON request a default deadline', async () => {
+    fetchMock.mockResolvedValue(okEnvelope({ ok: true }))
+    await api.get('/projects')
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit
+    expect(init.signal).toBeInstanceOf(AbortSignal)
+  })
+
+  it('reports a stalled server as a timeout, not as being offline', async () => {
+    fetchMock.mockRejectedValue(new DOMException('timed out', 'TimeoutError'))
+    await expect(api.get('/projects')).rejects.toMatchObject({
+      code: ApiErrorCode.SERVICE_UNAVAILABLE,
+      message: 'The server took too long to answer',
+    })
+  })
+})
