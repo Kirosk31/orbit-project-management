@@ -1,12 +1,35 @@
+import { resolve } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, normalizePath, type Plugin } from 'vite'
+
+/**
+ * index.html preloads the Archivo font by its path in node_modules, which the
+ * build turns into the same hashed /assets URL the CSS uses. The dev server
+ * serves that file from /@fs/ instead, so point the preload there in dev too.
+ */
+function devNodeModulesPreload(): Plugin {
+  const root = fileURLToPath(new URL('.', import.meta.url))
+  return {
+    name: 'orbit:dev-node-modules-preload',
+    apply: 'serve',
+    transformIndexHtml: {
+      order: 'pre',
+      handler: (html) =>
+        html.replace(
+          /(<link[^>]*rel="preload"[^>]*href=")((?:\.\.\/)+node_modules\/[^"]+)"/gs,
+          (_match, prefix: string, href: string) =>
+            `${prefix}/@fs/${normalizePath(resolve(root, href))}"`,
+        ),
+    },
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), devNodeModulesPreload()],
   build: {
     rollupOptions: {
       output: {
