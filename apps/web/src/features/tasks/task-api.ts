@@ -13,6 +13,7 @@ import type {
   MoveChecklistItemDto,
   TaskActivityDto,
   TaskDto,
+  TaskListItemDto,
   TaskQuery,
   SavedFilterDto,
   TimeEntryDto,
@@ -28,7 +29,7 @@ import type {
 import { api, apiBlobRequest } from '@/lib/api'
 
 export interface TaskListResult {
-  rows: TaskDto[]
+  rows: TaskListItemDto[]
   total: number
 }
 

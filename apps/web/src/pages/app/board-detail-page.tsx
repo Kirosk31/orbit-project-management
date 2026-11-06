@@ -1,32 +1,28 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createColumnSchema, createTaskSchema, updateBoardSchema } from '@orbit/shared'
-import type { ColumnDto, SavedTaskFilterValues, TaskDto } from '@orbit/shared'
+import type { ColumnDto, SavedTaskFilterValues, TaskListItemDto } from '@orbit/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArchiveIcon,
   ArrowLeftIcon,
-  ArrowRightIcon,
-  ArrowUpRightIcon,
   Columns3Icon,
   ListIcon,
   MoreHorizontalIcon,
   PencilIcon,
   PlusIcon,
   Trash2Icon,
-  TriangleAlertIcon,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { useForm } from 'react-hook-form'
 import type { DragEvent, ReactNode } from 'react'
-import { useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import type { z } from 'zod'
 
 import { ColorSwatchPicker } from '@/components/shared/color-swatch-picker'
 import { EmptyState, PageContainer, PageHeader } from '@/components/shared/page'
 import { TilePanel } from '@orbit/brand'
-import { CompletionMark } from '@/features/tasks/completion-mark'
 import type { TaskListResult } from '@/features/tasks/task-api'
 import { useHotkeys } from '@/hooks/use-hotkeys'
 import { moveTaskInList, shiftColumnCounts } from '@/lib/optimistic'
@@ -76,21 +72,20 @@ import {
   listAllBoardTasksRequest,
   moveTaskRequest,
 } from '@/features/tasks/task-api'
-import {
-  AssigneeStack,
-  DueDate,
-  LabelChips,
-  PriorityMark,
-  SubtaskCount,
-} from '@/features/tasks/task-meta'
+import { PriorityMark } from '@/features/tasks/task-meta'
 import { TaskBoardFilters } from '@/features/tasks/task-board-filters'
 import { useProjectRealtime } from '@/features/realtime/use-project-realtime'
 import { useBreadcrumbs } from '@/features/app/breadcrumbs'
 import { getProjectRequest } from '@/features/projects/project-api'
+import { BoardColumn } from '@/features/boards/board-column'
+import { groupTasksByColumn } from '@/features/boards/group-tasks'
 import { BoardListView } from '@/features/boards/board-list-view'
 import { COLUMN_COLORS } from '@/lib/task-colors'
 import { tilesFromTasks } from '@/lib/tiles'
 import { cn } from '@/lib/utils'
+
+const NO_COLUMNS: ColumnDto[] = []
+const NO_TASKS: TaskListItemDto[] = []
 
 export function BoardDetailPage(): ReactNode {
   const { t } = useTranslation()
@@ -208,7 +203,7 @@ export function BoardDetailPage(): ReactNode {
     onError: () => toast.error(t('auth.genericError')),
   })
 
-  const renameMutation = useMutation({
+  const { mutate: renameColumn } = useMutation({
     mutationFn: (input: { columnId: string; name: string }) =>
       updateColumnRequest(input.columnId, { name: input.name }),
     onSuccess: () => {
@@ -219,7 +214,7 @@ export function BoardDetailPage(): ReactNode {
     onError: () => toast.error(t('auth.genericError')),
   })
 
-  const deleteColumnMutation = useMutation({
+  const { mutate: deleteColumn } = useMutation({
     mutationFn: (columnId: string) => deleteColumnRequest(columnId),
     onSuccess: () => {
       invalidate()
@@ -228,7 +223,7 @@ export function BoardDetailPage(): ReactNode {
     onError: () => toast.error(t('auth.genericError')),
   })
 
-  const moveMutation = useMutation({
+  const { mutate: moveColumn } = useMutation({
     mutationFn: (input: { columnId: string; toPosition: number }) =>
       moveColumnRequest(input.columnId, input.toPosition),
     onSuccess: invalidate,
@@ -256,7 +251,7 @@ export function BoardDetailPage(): ReactNode {
     onError: () => toast.error(t('auth.genericError')),
   })
 
-  const moveTaskMutation = useMutation({
+  const { mutate: moveTask } = useMutation({
     mutationFn: (input: { taskId: string; columnId: string }) =>
       moveTaskRequest(input.taskId, { columnId: input.columnId }),
     // The card lands immediately; the server confirms in the background.
@@ -294,7 +289,7 @@ export function BoardDetailPage(): ReactNode {
     },
   })
 
-  const columns = columnsQuery.data ?? []
+  const columns = columnsQuery.data ?? NO_COLUMNS
 
   // "n" drops a new task into the first column, unless something is already open on top.
   useHotkeys(['n'], () => {
@@ -302,7 +297,7 @@ export function BoardDetailPage(): ReactNode {
     if (!first || document.querySelector('[role="dialog"]')) return
     setAddTaskForColumn(first.id)
   })
-  const tasks = tasksQuery.data?.rows ?? []
+  const tasks = tasksQuery.data?.rows ?? NO_TASKS
   const isFiltering = Boolean(
     taskFilters.search ||
     taskFilters.priority ||
@@ -310,22 +305,76 @@ export function BoardDetailPage(): ReactNode {
     taskFilters.statusId ||
     taskFilters.archived,
   )
-  const tasksByColumn = new Map<string, typeof tasks>()
-  for (const task of tasks) {
-    const columnId = task.columnId ?? ''
-    const list = tasksByColumn.get(columnId) ?? []
-    list.push(task)
-    tasksByColumn.set(columnId, list)
-  }
+  // Regrouped only when the task list itself changes, not on every render.
+  const tasksByColumn = useMemo(() => groupTasksByColumn(tasks), [tasks])
+  const tiles = useMemo(() => tilesFromTasks(tasks), [tasks])
 
-  const handleDrop = (event: DragEvent, index: number | null): void => {
-    event.preventDefault()
-    if (draggingId) {
-      moveMutation.mutate({ columnId: draggingId, toPosition: index ?? columns.length - 1 })
-    }
+  // Stable handlers, so memoized columns and cards skip renders they don't need.
+  const handleDrop = useCallback(
+    (event: DragEvent, index: number | null): void => {
+      event.preventDefault()
+      if (draggingId) {
+        moveColumn({ columnId: draggingId, toPosition: index ?? columns.length - 1 })
+      }
+      setDraggingId(null)
+      setDropIndex(null)
+    },
+    [draggingId, columns.length, moveColumn],
+  )
+  const handleColumnDragStart = useCallback((columnId: string, event: DragEvent) => {
+    setDraggingId(columnId)
+    event.dataTransfer.effectAllowed = 'move'
+  }, [])
+  const handleColumnDragEnd = useCallback(() => {
     setDraggingId(null)
     setDropIndex(null)
-  }
+  }, [])
+  const handleColumnDragOver = useCallback(
+    (columnId: string, index: number) => {
+      if (draggingTaskId !== null) {
+        setTaskDropColumn(columnId)
+      } else {
+        setDropIndex(index)
+      }
+    },
+    [draggingTaskId],
+  )
+  const handleColumnDrop = useCallback(
+    (columnId: string, index: number, event: DragEvent) => {
+      if (draggingTaskId) {
+        const draggedTask = tasks.find((task) => task.id === draggingTaskId)
+        if (draggedTask && draggedTask.columnId !== columnId) {
+          moveTask({ taskId: draggingTaskId, columnId })
+        }
+        setDraggingTaskId(null)
+        setTaskDropColumn(null)
+      } else {
+        handleDrop(event, index)
+      }
+    },
+    [draggingTaskId, tasks, moveTask, handleDrop],
+  )
+  const handleRenameColumn = useCallback(
+    (columnId: string, name: string) => renameColumn({ columnId, name }),
+    [renameColumn],
+  )
+  const handleCancelRename = useCallback(() => setEditingNameId(null), [])
+  const handleOpenTask = useCallback(
+    (taskId: string) => navigate(`/app/tasks/${taskId}`),
+    [navigate],
+  )
+  const handleTaskDragStart = useCallback((taskId: string, event: DragEvent) => {
+    setDraggingTaskId(taskId)
+    event.dataTransfer.effectAllowed = 'move'
+  }, [])
+  const handleTaskDragEnd = useCallback(() => {
+    setDraggingTaskId(null)
+    setTaskDropColumn(null)
+  }, [])
+  const handleMoveTask = useCallback(
+    (taskId: string, columnId: string) => moveTask({ taskId, columnId }),
+    [moveTask],
+  )
 
   if (boardQuery.isPending) {
     return (
@@ -356,7 +405,6 @@ export function BoardDetailPage(): ReactNode {
     )
   }
 
-  const tiles = tilesFromTasks(tasks)
   const doneCount = tiles.filter((tile) => tile.state === 'done').length
   const overdueCount = tiles.filter((tile) => tile.state === 'overdue').length
 
@@ -545,221 +593,38 @@ export function BoardDetailPage(): ReactNode {
             onDragOver={(event) => event.preventDefault()}
             onDrop={(event) => handleDrop(event, null)}
           >
-            {columns.map((column, index) => {
-              const overLimit = column.wipLimit !== null && column.taskCount > column.wipLimit
-              const columnTasks = tasksByColumn.get(column.id) ?? []
-              const isTaskTarget = taskDropColumn === column.id && draggingTaskId !== null
-              const isColumnTarget =
-                dropIndex === index && draggingId !== column.id && draggingTaskId === null
-              return (
-                <section
-                  key={column.id}
-                  aria-label={column.name}
-                  draggable={draggingTaskId === null && editingNameId !== column.id}
-                  onDragStart={(event) => {
-                    setDraggingId(column.id)
-                    event.dataTransfer.effectAllowed = 'move'
-                  }}
-                  onDragEnd={() => {
-                    setDraggingId(null)
-                    setDropIndex(null)
-                  }}
-                  onDragOver={(event) => {
-                    event.preventDefault()
-                    if (draggingTaskId !== null) {
-                      setTaskDropColumn(column.id)
-                    } else {
-                      setDropIndex(index)
-                    }
-                  }}
-                  onDrop={(event) => {
-                    event.preventDefault()
-                    if (draggingTaskId) {
-                      const draggedTask = tasks.find((task) => task.id === draggingTaskId)
-                      if (draggedTask && draggedTask.columnId !== column.id) {
-                        moveTaskMutation.mutate({ taskId: draggingTaskId, columnId: column.id })
-                      }
-                      setDraggingTaskId(null)
-                      setTaskDropColumn(null)
-                    } else {
-                      handleDrop(event, index)
-                    }
-                  }}
-                  className={cn(
-                    'flex w-72 shrink-0 flex-col rounded-lg bg-muted/70 transition-[background-color,box-shadow,opacity] duration-150',
-                    draggingId === column.id && 'opacity-50',
-                    (isTaskTarget || isColumnTarget) && 'bg-accent ring-2 ring-ring/40 ring-inset',
-                  )}
-                >
-                  <header className="flex h-11 items-center gap-2 pr-1.5 pl-3">
-                    <span
-                      className="size-2.5 shrink-0 rounded-[2px]"
-                      style={{ backgroundColor: column.color ?? 'var(--muted-foreground)' }}
-                      aria-hidden="true"
-                    />
-                    {editingNameId === column.id ? (
-                      <form
-                        className="flex-1"
-                        onSubmit={(event) => {
-                          event.preventDefault()
-                          const input = event.currentTarget.elements.namedItem(
-                            'name',
-                          ) as HTMLInputElement
-                          renameMutation.mutate({ columnId: column.id, name: input.value.trim() })
-                        }}
-                      >
-                        <Input
-                          name="name"
-                          autoFocus
-                          defaultValue={column.name}
-                          aria-label={t('boards.renameColumn')}
-                          className="h-7"
-                          onBlur={() => setEditingNameId(null)}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Escape') setEditingNameId(null)
-                          }}
-                        />
-                      </form>
-                    ) : (
-                      <h2
-                        className="min-w-0 flex-1 cursor-grab truncate text-sm font-semibold"
-                        onDoubleClick={() => setEditingNameId(column.id)}
-                        title={column.name}
-                      >
-                        {column.name}
-                      </h2>
-                    )}
-                    <span
-                      className={cn(
-                        'text-xs tabular-nums',
-                        overLimit ? 'font-semibold text-destructive' : 'text-muted-foreground',
-                      )}
-                    >
-                      {isFiltering ? `${columnTasks.length}/${column.taskCount}` : column.taskCount}
-                      {column.wipLimit !== null && ` / ${column.wipLimit}`}
-                    </span>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-7"
-                          aria-label={`${t('boards.columnActions')}: ${column.name}`}
-                        >
-                          <MoreHorizontalIcon className="size-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-44">
-                        <DropdownMenuItem onSelect={() => setEditingNameId(column.id)}>
-                          <PencilIcon />
-                          {t('boards.renameColumn')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onSelect={() => deleteColumnMutation.mutate(column.id)}
-                        >
-                          <Trash2Icon />
-                          {t('boards.deleteColumn')}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </header>
-                  {overLimit && (
-                    <p className="mx-3 -mt-1 mb-2 flex items-center gap-1.5 text-xs font-medium text-destructive">
-                      <TriangleAlertIcon className="size-3.5" aria-hidden="true" />
-                      {t('boards.overLimit')}
-                    </p>
-                  )}
-
-                  <div className="flex flex-col gap-2 px-2 pb-2">
-                    {tasksQuery.isPending ? (
-                      <Skeleton className="h-20 w-full bg-card" />
-                    ) : columnTasks.length === 0 ? (
-                      <p className="rounded-md border border-dashed border-[color-mix(in_srgb,var(--border)_80%,var(--foreground))] px-3 py-5 text-center text-xs text-muted-foreground">
-                        {isTaskTarget ? t('boards.dropHere') : t('boards.emptyColumn')}
-                      </p>
-                    ) : (
-                      <ul className="flex flex-col gap-2">
-                        {columnTasks.map((task) => (
-                          <li key={task.id} className="group relative">
-                            <TaskCard
-                              task={task}
-                              isDragging={draggingTaskId === task.id}
-                              onOpen={() => navigate(`/app/tasks/${task.id}`)}
-                              onDragStart={(event) => {
-                                setDraggingTaskId(task.id)
-                                event.dataTransfer.effectAllowed = 'move'
-                              }}
-                              onDragEnd={() => {
-                                setDraggingTaskId(null)
-                                setTaskDropColumn(null)
-                              }}
-                            />
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="absolute top-1.5 right-1.5 size-7 bg-card opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100 [@media(hover:none)]:opacity-100"
-                                  aria-label={t('tasks.actions')}
-                                  aria-describedby={`task-title-${task.id}`}
-                                >
-                                  <MoreHorizontalIcon className="size-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-56">
-                                <DropdownMenuItem
-                                  onSelect={() => navigate(`/app/tasks/${task.id}`)}
-                                >
-                                  <ArrowUpRightIcon />
-                                  {t('tasks.openTask')}
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                {columns
-                                  .filter((target) => target.id !== column.id)
-                                  .map((target) => (
-                                    <DropdownMenuItem
-                                      key={target.id}
-                                      onSelect={() =>
-                                        moveTaskMutation.mutate({
-                                          taskId: task.id,
-                                          columnId: target.id,
-                                        })
-                                      }
-                                    >
-                                      <ArrowRightIcon />
-                                      {t('tasks.moveTo', { column: target.name })}
-                                    </DropdownMenuItem>
-                                  ))}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="justify-start text-muted-foreground hover:text-foreground"
-                      onClick={() => setAddTaskForColumn(column.id)}
-                      aria-keyshortcuts={index === 0 ? 'N' : undefined}
-                    >
-                      <PlusIcon />
-                      {t('tasks.addTask')}
-                      {index === 0 && (
-                        <kbd
-                          className="ml-auto hidden rounded border bg-muted px-1.5 font-sans text-[0.6875rem] leading-5 text-muted-foreground sm:inline"
-                          aria-hidden="true"
-                        >
-                          N
-                        </kbd>
-                      )}
-                    </Button>
-                  </div>
-                </section>
-              )
-            })}
+            {columns.map((column, index) => (
+              <BoardColumn
+                key={column.id}
+                column={column}
+                index={index}
+                columns={columns}
+                tasks={tasksByColumn.get(column.id)}
+                isLoadingTasks={tasksQuery.isPending}
+                isFiltering={isFiltering}
+                isEditingName={editingNameId === column.id}
+                canDrag={draggingTaskId === null && editingNameId !== column.id}
+                isBeingDragged={draggingId === column.id}
+                isColumnTarget={
+                  dropIndex === index && draggingId !== column.id && draggingTaskId === null
+                }
+                isTaskTarget={taskDropColumn === column.id && draggingTaskId !== null}
+                draggingTaskId={draggingTaskId}
+                onColumnDragStart={handleColumnDragStart}
+                onColumnDragEnd={handleColumnDragEnd}
+                onColumnDragOver={handleColumnDragOver}
+                onColumnDrop={handleColumnDrop}
+                onStartRename={setEditingNameId}
+                onCancelRename={handleCancelRename}
+                onRename={handleRenameColumn}
+                onDelete={deleteColumn}
+                onAddTask={setAddTaskForColumn}
+                onOpenTask={handleOpenTask}
+                onTaskDragStart={handleTaskDragStart}
+                onTaskDragEnd={handleTaskDragEnd}
+                onMoveTask={handleMoveTask}
+              />
+            ))}
 
             <Dialog open={addColumnOpen} onOpenChange={setAddColumnOpen}>
               <DialogTrigger asChild>
@@ -907,58 +772,5 @@ export function BoardDetailPage(): ReactNode {
         </DialogContent>
       </Dialog>
     </PageContainer>
-  )
-}
-
-interface TaskCardProps {
-  task: TaskDto
-  isDragging: boolean
-  onOpen: () => void
-  onDragStart: (event: DragEvent) => void
-  onDragEnd: () => void
-}
-
-function TaskCard({ task, isDragging, onOpen, onDragStart, onDragEnd }: TaskCardProps): ReactNode {
-  const { t } = useTranslation()
-
-  return (
-    <button
-      type="button"
-      draggable
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-      onClick={onOpen}
-      className={cn(
-        'flex w-full cursor-pointer flex-col gap-2.5 rounded-md border bg-card p-3 text-left transition-[border-color,box-shadow,opacity,translate] duration-150 hover:border-[color-mix(in_srgb,var(--border)_55%,var(--primary))] hover:shadow-lift',
-        isDragging && 'rotate-1 opacity-60',
-      )}
-    >
-      <span className="flex items-start gap-2 pr-6">
-        {task.isCompleted && (
-          <span className="mt-0.5 shrink-0">
-            <CompletionMark completed size={16} turn={90} completedAt={task.completedAt} />
-          </span>
-        )}
-        <span
-          id={`task-title-${task.id}`}
-          className={cn(
-            'min-w-0 flex-1 text-sm leading-snug font-medium',
-            task.isCompleted && 'text-muted-foreground',
-          )}
-        >
-          {task.title}
-          {task.isCompleted && <span className="sr-only"> ({t('tasks.completedState')})</span>}
-        </span>
-      </span>
-      <LabelChips labels={task.labels} />
-      <span className="flex items-center gap-3">
-        <PriorityMark priority={task.priority} />
-        {task.dueDate && <DueDate dueDate={task.dueDate} isCompleted={task.isCompleted} />}
-        <SubtaskCount done={task.completedSubtaskCount} total={task.subtaskCount} />
-        <span className="ml-auto">
-          <AssigneeStack assignees={task.assignees} />
-        </span>
-      </span>
-    </button>
   )
 }

@@ -29,6 +29,10 @@ ARG VITE_APP_NAME=Orbit
 ENV VITE_API_URL=${VITE_API_URL} \
     VITE_APP_NAME=${VITE_APP_NAME}
 RUN npm run build --workspace=@orbit/shared && npm run build --workspace=@orbit/web
+# Precompressed copies for nginx gzip_static, so assets are not gzipped per request.
+RUN find apps/web/dist -type f \
+      \( -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.svg' -o -name '*.json' -o -name '*.txt' \) \
+      -size +1k -exec gzip -9 --keep {} +
 
 FROM nginxinc/nginx-unprivileged:1.30.4-alpine AS web
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf

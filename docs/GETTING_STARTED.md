@@ -75,6 +75,7 @@ The development values should resolve to:
 | `NODE_ENV`              | `development`                                                 | Development error behavior and cookies   |
 | `PORT`                  | `4000`                                                        | API and Socket.IO listener               |
 | `DATABASE_URL`          | `postgresql://orbit:orbit@localhost:5432/orbit?schema=public` | Main development database                |
+| `DATABASE_POOL_MAX`     | `10`                                                          | Postgres connections per process         |
 | `REDIS_URL`             | `redis://localhost:6379`                                      | Cache, rate limits, and realtime adapter |
 | `CORS_ORIGINS`          | `http://localhost:5173`                                       | Exact trusted browser origin             |
 | `WEB_APP_URL`           | `http://localhost:5173`                                       | Links generated for email flows          |

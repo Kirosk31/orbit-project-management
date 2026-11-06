@@ -20,7 +20,8 @@ import type { UsersRepository } from './users.repository.js'
 export const AVATAR_MAX_BYTES = 2 * 1024 * 1024
 export const AVATAR_MAX_DIMENSION = 4_096
 export const AVATAR_MAX_PIXELS = 16_777_216
-export const AVATAR_OUTPUT_DIMENSION = 512
+/** Avatars render at 20–80 px; 256 covers 3x screens. Always stored as WebP. */
+export const AVATAR_OUTPUT_DIMENSION = 256
 export const AVATAR_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
 
 const AVATAR_EXTENSIONS: Record<string, string> = {
@@ -119,18 +120,13 @@ export class UsersService {
           withoutEnlargement: true,
         })
 
-      normalizedBuffer =
-        detectedMimeType === 'image/jpeg'
-          ? await normalizedImage.jpeg({ progressive: true, quality: 85 }).toBuffer()
-          : detectedMimeType === 'image/png'
-            ? await normalizedImage.png({ compressionLevel: 9 }).toBuffer()
-            : await normalizedImage.webp({ quality: 85 }).toBuffer()
+      normalizedBuffer = await normalizedImage.webp({ quality: 82 }).toBuffer()
     } catch {
       throw badRequest('Avatar content must be a decodable image')
     }
 
-    const key = `avatars/${userId}/${randomUUID()}.${extension}`
-    await this.deps.storage.put(key, normalizedBuffer, { mimeType: detectedMimeType })
+    const key = `avatars/${userId}/${randomUUID()}.webp`
+    await this.deps.storage.put(key, normalizedBuffer, { mimeType: 'image/webp' })
 
     const previousKey = await this.deps.repository.getAvatarKey(userId)
     const user = await this.deps.repository.setAvatarKey(userId, key)

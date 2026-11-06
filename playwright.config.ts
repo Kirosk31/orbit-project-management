@@ -25,7 +25,8 @@ export default defineConfig({
     {
       name: 'mobile-chromium',
       use: { ...devices['Pixel 7'] },
-      testMatch: /accessibility\.spec\.ts/,
+      // The owner workflow on a phone viewport catches controls that only break on mobile.
+      testMatch: /(accessibility|owner-workflow)\.spec\.ts/,
     },
   ],
   webServer: [

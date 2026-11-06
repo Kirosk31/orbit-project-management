@@ -60,6 +60,7 @@ Required decisions:
 | `POSTGRES_USER`         | Dedicated application database user                                                     |
 | `POSTGRES_PASSWORD`     | Unique random secret                                                                    |
 | `DATABASE_URL`          | Must match the three PostgreSQL values and use host `postgres`                          |
+| `DATABASE_POOL_MAX`     | Optional, default 10; keep (API + worker containers) × value under `max_connections`    |
 | `REDIS_PASSWORD`        | Unique random secret                                                                    |
 | `REDIS_URL`             | Must use host `redis` and contain the Redis password                                    |
 | `JWT_ACCESS_SECRET`     | At least 32 characters; 48 random bytes are recommended                                 |

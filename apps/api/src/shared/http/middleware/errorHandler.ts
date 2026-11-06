@@ -18,6 +18,15 @@ function formatZodIssues(error: ZodError): ZodIssueShape[] {
   }))
 }
 
+/** express.json() rejects bodies over its limit with this error type. */
+function isBodyTooLarge(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { type?: unknown }).type === 'entity.too.large'
+  )
+}
+
 export function createErrorHandler(logger: Logger) {
   return (error: unknown, req: Request, res: Response, _next: NextFunction): void => {
     const requestId = req.requestId
@@ -41,6 +50,10 @@ export function createErrorHandler(logger: Logger) {
       statusCode = HttpStatus.BAD_REQUEST
       code = ApiErrorCode.BAD_REQUEST
       message = 'Malformed JSON in request body'
+    } else if (isBodyTooLarge(error)) {
+      statusCode = HttpStatus.PAYLOAD_TOO_LARGE
+      code = ApiErrorCode.PAYLOAD_TOO_LARGE
+      message = 'Request body is too large'
     } else if (error instanceof multer.MulterError) {
       statusCode =
         error.code === 'LIMIT_FILE_SIZE' ? HttpStatus.PAYLOAD_TOO_LARGE : HttpStatus.BAD_REQUEST

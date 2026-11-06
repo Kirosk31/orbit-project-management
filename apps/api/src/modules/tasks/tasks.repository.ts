@@ -20,8 +20,11 @@ export interface TaskRow extends Task {
   subtasks: Array<{ isCompleted: boolean }>
 }
 
+/** A task as lists load it: everything a card shows, without the description. */
+export type TaskCardRow = Omit<TaskRow, 'description'>
+
 export interface TaskListResult {
-  rows: TaskRow[]
+  rows: TaskCardRow[]
   total: number
 }
 
@@ -136,9 +139,53 @@ const TASK_INCLUDE = {
   },
 } satisfies Prisma.TaskInclude
 
-function toTaskRow(row: Prisma.TaskGetPayload<{ include: typeof TASK_INCLUDE }>): TaskRow {
+/**
+ * Lists select every column a card needs and skip `description`, which can be
+ * up to 10,000 characters per task and is only shown on the task page.
+ */
+const TASK_CARD_SELECT = {
+  id: true,
+  orgId: true,
+  projectId: true,
+  boardId: true,
+  columnId: true,
+  statusId: true,
+  parentId: true,
+  createdById: true,
+  title: true,
+  priority: true,
+  dueDate: true,
+  estimatedHours: true,
+  trackedSeconds: true,
+  position: true,
+  isArchived: true,
+  isCompleted: true,
+  completedAt: true,
+  createdAt: true,
+  updatedAt: true,
+  deletedAt: true,
+  status: TASK_INCLUDE.status,
+  assignees: {
+    select: {
+      id: true,
+      user: { select: { id: true, email: true, fullName: true, avatarKey: true } },
+    },
+  },
+  labels: {
+    select: { id: true, label: { select: { id: true, name: true, color: true } } },
+  },
+  subtasks: TASK_INCLUDE.subtasks,
+} satisfies Prisma.TaskSelect
+
+type TaskRelations = Pick<
+  Prisma.TaskGetPayload<{ select: typeof TASK_CARD_SELECT }>,
+  'status' | 'assignees' | 'labels' | 'subtasks'
+>
+
+function flattenRelations(
+  row: TaskRelations,
+): Pick<TaskRow, 'statusName' | 'assignees' | 'labels' | 'subtasks'> {
   return {
-    ...row,
     statusName: row.status.name,
     assignees: row.assignees.map((a) => ({
       id: a.id,
@@ -153,7 +200,18 @@ function toTaskRow(row: Prisma.TaskGetPayload<{ include: typeof TASK_INCLUDE }>)
       name: l.label.name,
       color: l.label.color,
     })),
+    subtasks: row.subtasks,
   }
+}
+
+function toTaskRow(row: Prisma.TaskGetPayload<{ include: typeof TASK_INCLUDE }>): TaskRow {
+  return { ...row, ...flattenRelations(row) }
+}
+
+function toTaskCardRow(
+  row: Prisma.TaskGetPayload<{ select: typeof TASK_CARD_SELECT }>,
+): TaskCardRow {
+  return { ...row, ...flattenRelations(row) }
 }
 
 export class PrismaTasksRepository implements TasksRepository {
@@ -265,14 +323,14 @@ export class PrismaTasksRepository implements TasksRepository {
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.task.findMany({
         where,
-        include: TASK_INCLUDE,
+        select: TASK_CARD_SELECT,
         orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
         skip,
         take,
       }),
       this.prisma.task.count({ where }),
     ])
-    return { rows: rows.map(toTaskRow), total }
+    return { rows: rows.map(toTaskCardRow), total }
   }
 
   async listAssignedOpenTasks(
@@ -292,14 +350,14 @@ export class PrismaTasksRepository implements TasksRepository {
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.task.findMany({
         where,
-        include: TASK_INCLUDE,
+        select: TASK_CARD_SELECT,
         // Soonest deadline first; undated work sits after everything with a date.
         orderBy: [{ dueDate: { sort: 'asc', nulls: 'last' } }, { createdAt: 'asc' }],
         take,
       }),
       this.prisma.task.count({ where }),
     ])
-    return { rows: rows.map(toTaskRow), total }
+    return { rows: rows.map(toTaskCardRow), total }
   }
 
   countTasksInColumn(columnId: string) {

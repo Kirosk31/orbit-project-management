@@ -1,12 +1,35 @@
+import { resolve } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, normalizePath, type Plugin } from 'vite'
+
+/**
+ * index.html preloads the Archivo font by its path in node_modules, which the
+ * build turns into the same hashed /assets URL the CSS uses. The dev server
+ * serves that file from /@fs/ instead, so point the preload there in dev too.
+ */
+function devNodeModulesPreload(): Plugin {
+  const root = fileURLToPath(new URL('.', import.meta.url))
+  return {
+    name: 'orbit:dev-node-modules-preload',
+    apply: 'serve',
+    transformIndexHtml: {
+      order: 'pre',
+      handler: (html) =>
+        html.replace(
+          /(<link[^>]*rel="preload"[^>]*href=")((?:\.\.\/)+node_modules\/[^"]+)"/gs,
+          (_match, prefix: string, href: string) =>
+            `${prefix}/@fs/${normalizePath(resolve(root, href))}"`,
+        ),
+    },
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), devNodeModulesPreload()],
   build: {
     rollupOptions: {
       output: {
@@ -35,27 +58,8 @@ export default defineConfig({
           ) {
             return 'vendor-data'
           }
-          if (
-            [
-              '/node_modules/@hookform/',
-              '/node_modules/react-hook-form/',
-              '/node_modules/zod/',
-            ].some((dependency) => moduleId.includes(dependency))
-          ) {
-            return 'vendor-forms'
-          }
-          if (
-            [
-              '/node_modules/@radix-ui/',
-              '/node_modules/cmdk/',
-              '/node_modules/framer-motion/',
-              '/node_modules/lucide-react/',
-              '/node_modules/sonner/',
-            ].some((dependency) => moduleId.includes(dependency))
-          ) {
-            return 'vendor-ui'
-          }
-
+          // Everything else (Radix, forms, cmdk, framer-motion, recharts) is left to
+          // Rollup so each route preloads only the libraries it actually imports.
           return undefined
         },
       },

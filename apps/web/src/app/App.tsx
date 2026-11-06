@@ -7,7 +7,7 @@ import { bootstrapSession } from '@/features/auth/auth-store'
 import { RequireAuth } from '@/features/auth/require-auth'
 import { AppShell } from '@/features/app/app-shell'
 import { AuthLayout } from '@/features/auth/auth-layout'
-import { CommandPalette } from '@/features/command-palette/command-palette'
+import { CommandPaletteHost } from '@/features/command-palette/command-palette-host'
 import { useRealtime } from '@/features/realtime/use-realtime'
 
 const LandingPage = lazy(() =>
@@ -137,7 +137,7 @@ export function App(): ReactNode {
             </Route>
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
-          <CommandPalette />
+          <CommandPaletteHost />
         </Suspense>
       </BrowserRouter>
     </SessionBootstrap>

@@ -13,6 +13,13 @@ function validEnv(overrides: Record<string, string> = {}) {
 }
 
 describe('application configuration', () => {
+  it('sizes the database pool at 10 unless DATABASE_POOL_MAX says otherwise', () => {
+    expect(parseEnv(validEnv()).DATABASE_POOL_MAX).toBe(10)
+    expect(parseEnv(validEnv({ DATABASE_POOL_MAX: '25' })).DATABASE_POOL_MAX).toBe(25)
+    expect(() => parseEnv(validEnv({ DATABASE_POOL_MAX: '0' }))).toThrow(/DATABASE_POOL_MAX/)
+    expect(() => parseEnv(validEnv({ DATABASE_POOL_MAX: 'many' }))).toThrow(/DATABASE_POOL_MAX/)
+  })
+
   it('does not trust forwarded addresses by default', () => {
     const config = createConfig(parseEnv(validEnv()))
 
@@ -87,6 +94,7 @@ describe('application configuration', () => {
           RATE_LIMIT_UPLOAD_MAX: '4',
           RATE_LIMIT_SEARCH_MAX: '30',
           RATE_LIMIT_ANALYTICS_MAX: '12',
+          RATE_LIMIT_RUM_MAX: '50',
         }),
       ),
     )
@@ -96,6 +104,7 @@ describe('application configuration', () => {
       upload: { max: 4, windowSeconds: 120 },
       search: { max: 30, windowSeconds: 120 },
       analytics: { max: 12, windowSeconds: 120 },
+      rum: { max: 50, windowSeconds: 120 },
     })
   })
 })

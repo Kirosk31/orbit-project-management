@@ -1,4 +1,4 @@
-import { LayoutGroup, motion } from 'framer-motion'
+import { LayoutGroup, MotionConfig, motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
@@ -131,30 +131,32 @@ function LiveBoard(): ReactNode {
             label={t('boards.progress', { done: String(finished), total: '14' })}
           />
         </div>
-        <LayoutGroup>
-          <div className="grid grid-cols-3 gap-2.5 p-3">
-            {columns.map((column) => (
-              <div
-                key={column.key}
-                className="flex min-h-48 flex-col gap-2 rounded-md bg-muted/70 p-2"
-              >
-                <span className="flex items-center justify-between px-1 text-xs font-semibold">
-                  {t(column.key)}
-                  <span className="font-normal text-muted-foreground tabular-nums">
-                    {column.cards.length}
+        <MotionConfig reducedMotion="user">
+          <LayoutGroup>
+            <div className="grid grid-cols-3 gap-2.5 p-3">
+              {columns.map((column) => (
+                <div
+                  key={column.key}
+                  className="flex min-h-48 flex-col gap-2 rounded-md bg-muted/70 p-2"
+                >
+                  <span className="flex items-center justify-between px-1 text-xs font-semibold">
+                    {t(column.key)}
+                    <span className="font-normal text-muted-foreground tabular-nums">
+                      {column.cards.length}
+                    </span>
                   </span>
-                </span>
-                {column.cards.map((key) => (
-                  <DemoCardView
-                    key={key}
-                    card={CARDS[key]}
-                    done={column.key === 'hero.boardDone'}
-                  />
-                ))}
-              </div>
-            ))}
-          </div>
-        </LayoutGroup>
+                  {column.cards.map((key) => (
+                    <DemoCardView
+                      key={key}
+                      card={CARDS[key]}
+                      done={column.key === 'hero.boardDone'}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </LayoutGroup>
+        </MotionConfig>
       </div>
     </div>
   )

@@ -3,9 +3,12 @@ import { PrismaClient } from '@prisma/client'
 
 let prisma: PrismaClient | null = null
 
+/** Pool size when DATABASE_POOL_MAX is not set. */
+export const DEFAULT_DATABASE_POOL_MAX = 10
+
 export function createPrismaClient(
   databaseUrl = process.env.DATABASE_URL,
-  maxConnections = 10,
+  maxConnections = DEFAULT_DATABASE_POOL_MAX,
 ): PrismaClient {
   if (!databaseUrl) {
     throw new Error('DATABASE_URL is required to initialize Prisma')
@@ -21,9 +24,10 @@ export function createPrismaClient(
   return new PrismaClient({ adapter })
 }
 
-export function getPrisma(): PrismaClient {
+/** The process-wide client. The pool size applies when the client is first created. */
+export function getPrisma(maxConnections = DEFAULT_DATABASE_POOL_MAX): PrismaClient {
   if (!prisma) {
-    prisma = createPrismaClient()
+    prisma = createPrismaClient(process.env.DATABASE_URL, maxConnections)
   }
   return prisma
 }
