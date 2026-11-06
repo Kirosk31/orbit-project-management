@@ -1,4 +1,4 @@
-import type { TaskDto } from '@orbit/shared'
+import type { TaskListItemDto } from '@orbit/shared'
 import { CircleCheckIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -21,7 +21,7 @@ export interface BoardListColumn {
 
 export interface BoardListViewProps {
   columns: BoardListColumn[]
-  tasks: TaskDto[]
+  tasks: TaskListItemDto[]
   onOpenTask: (taskId: string) => void
 }
 

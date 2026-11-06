@@ -8,6 +8,7 @@ import type {
   ProjectRealtimeEvent,
   TaskActivityDto,
   TaskDto,
+  TaskListItemDto,
   UpdateLabelDto,
   UpdateTaskDto,
 } from '@orbit/shared'
@@ -16,7 +17,7 @@ import { toPaginationParams } from '@orbit/shared'
 import { badRequest, conflict, notFound } from '../../core/errors/index.js'
 import type { OrganizationsRepository } from '../organizations/organizations.repository.js'
 import type { BoardsRepository } from '../boards/boards.repository.js'
-import type { TaskRow, TasksRepository } from './tasks.repository.js'
+import type { TaskCardRow, TaskRow, TasksRepository } from './tasks.repository.js'
 import type { NotificationsService } from '../notifications/notifications.service.js'
 import type { RealtimePublisher } from '../realtime/realtime.publisher.js'
 
@@ -187,7 +188,7 @@ export class TasksService {
   async listTasks(
     projectId: string,
     query: TaskQuery,
-  ): Promise<{ rows: TaskDto[]; total: number }> {
+  ): Promise<{ rows: TaskListItemDto[]; total: number }> {
     const { skip, take } = toPaginationParams(query)
     const result = await this.deps.repository.listTasks(
       projectId,
@@ -201,22 +202,22 @@ export class TasksService {
       skip,
       take,
     )
-    return { rows: result.rows.map((row) => this.toTaskDto(row)), total: result.total }
+    return { rows: result.rows.map((row) => this.toTaskListItemDto(row)), total: result.total }
   }
 
   async listMyTasks(
     orgId: string,
     userId: string,
     limit: number,
-  ): Promise<{ rows: TaskDto[]; total: number }> {
+  ): Promise<{ rows: TaskListItemDto[]; total: number }> {
     const result = await this.deps.repository.listAssignedOpenTasks(orgId, userId, limit)
-    return { rows: result.rows.map((row) => this.toTaskDto(row)), total: result.total }
+    return { rows: result.rows.map((row) => this.toTaskListItemDto(row)), total: result.total }
   }
 
   async listBoardTasks(
     boardId: string,
     query: TaskQuery,
-  ): Promise<{ rows: TaskDto[]; total: number }> {
+  ): Promise<{ rows: TaskListItemDto[]; total: number }> {
     const board = await this.deps.boards.findBoardById(boardId)
     if (!board) {
       throw notFound('Board not found')
@@ -235,7 +236,7 @@ export class TasksService {
       skip,
       take,
     )
-    return { rows: result.rows.map((row) => this.toTaskDto(row)), total: result.total }
+    return { rows: result.rows.map((row) => this.toTaskListItemDto(row)), total: result.total }
   }
 
   async updateTask(
@@ -567,6 +568,10 @@ export class TasksService {
   }
 
   private toTaskDto(task: TaskRow): TaskDto {
+    return { ...this.toTaskListItemDto(task), description: task.description }
+  }
+
+  private toTaskListItemDto(task: TaskCardRow): TaskListItemDto {
     return {
       id: task.id,
       orgId: task.orgId,
@@ -578,7 +583,6 @@ export class TasksService {
       parentId: task.parentId,
       createdById: task.createdById,
       title: task.title,
-      description: task.description,
       priority: task.priority,
       dueDate: task.dueDate ? task.dueDate.toISOString() : null,
       estimatedHours:

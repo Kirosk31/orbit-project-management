@@ -1,4 +1,4 @@
-import type { NotificationDto, ProjectDto, TaskDto } from '@orbit/shared'
+import type { NotificationDto, ProjectDto, TaskListItemDto } from '@orbit/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRightIcon, CircleCheckIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -42,7 +42,7 @@ const GROUP_LABEL = {
   none: 'dashboard.groupNoDate',
 } as const
 
-function groupOf(task: TaskDto, now: Date): GroupKey {
+function groupOf(task: TaskListItemDto, now: Date): GroupKey {
   if (!task.dueDate) return 'none'
   const state = dueStateOf(task.dueDate, false, now)
   if (state === 'overdue') return 'overdue'
@@ -322,7 +322,13 @@ export function DashboardPage(): ReactNode {
   )
 }
 
-function WorkRow({ task, project }: { task: TaskDto; project: ProjectDto | undefined }): ReactNode {
+function WorkRow({
+  task,
+  project,
+}: {
+  task: TaskListItemDto
+  project: ProjectDto | undefined
+}): ReactNode {
   const { t } = useTranslation()
   return (
     <li>

@@ -98,7 +98,12 @@ export interface TaskLabelDto {
   color: string
 }
 
-export interface TaskDto {
+/**
+ * A task as list endpoints return it (board, project, "my tasks"). Lists leave
+ * out the description, which can run to 10,000 characters and no card shows;
+ * open the task to read it.
+ */
+export interface TaskListItemDto {
   id: string
   orgId: string
   projectId: string
@@ -109,7 +114,7 @@ export interface TaskDto {
   parentId: string | null
   createdById: string
   title: string
-  description: string | null
+  description?: string | null
   priority: TaskPriority
   dueDate: string | null
   estimatedHours: string | null
@@ -124,6 +129,11 @@ export interface TaskDto {
   labels: TaskLabelDto[]
   createdAt: string
   updatedAt: string
+}
+
+/** A single task, as the detail and write endpoints return it. */
+export interface TaskDto extends TaskListItemDto {
+  description: string | null
 }
 
 export interface LabelDto {

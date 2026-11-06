@@ -423,6 +423,23 @@ describe('TasksService', () => {
     )
   })
 
+  it('leaves the description out of list rows and keeps it on the task itself', async () => {
+    const { description: _omitted, ...card } = makeTaskRow({ description: 'Long notes' })
+    const { service } = buildService({
+      repository: {
+        listAssignedOpenTasks: vi.fn(async () => ({ rows: [card], total: 1 })),
+        findTaskById: vi.fn(async () => makeTaskRow({ description: 'Long notes' })),
+      },
+    })
+
+    const list = await service.listMyTasks('org-1', 'user-1', 10)
+    expect(list.rows[0]).not.toHaveProperty('description')
+    expect(list.rows[0]).toMatchObject({ id: 'task-1', title: 'A task' })
+
+    const task = await service.getTask('task-1')
+    expect(task.description).toBe('Long notes')
+  })
+
   it('creates a one-level subtask that inherits tenant, project and status', async () => {
     const { repository, service } = buildService({
       repository: { countSubtasks: vi.fn(async () => 2) },

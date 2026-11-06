@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createColumnSchema, createTaskSchema, updateBoardSchema } from '@orbit/shared'
-import type { ColumnDto, SavedTaskFilterValues, TaskDto } from '@orbit/shared'
+import type { ColumnDto, SavedTaskFilterValues, TaskListItemDto } from '@orbit/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArchiveIcon,
@@ -911,7 +911,7 @@ export function BoardDetailPage(): ReactNode {
 }
 
 interface TaskCardProps {
-  task: TaskDto
+  task: TaskListItemDto
   isDragging: boolean
   onOpen: () => void
   onDragStart: (event: DragEvent) => void

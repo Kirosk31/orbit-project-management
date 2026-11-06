@@ -1,11 +1,11 @@
-import type { TaskDto } from '@orbit/shared'
+import type { TaskListItemDto } from '@orbit/shared'
 import { useQueries } from '@tanstack/react-query'
 
 import { listProjectTasksRequest } from '@/features/tasks/task-api'
 
 /** Top-level tasks for several projects at once, shared across pages by cache key. */
 export function useProjectTasks(projectIds: readonly string[]): {
-  byProject: Map<string, TaskDto[]>
+  byProject: Map<string, TaskListItemDto[]>
   isLoading: boolean
 } {
   const queries = useQueries({
@@ -15,7 +15,7 @@ export function useProjectTasks(projectIds: readonly string[]): {
       staleTime: 30_000,
     })),
   })
-  const byProject = new Map<string, TaskDto[]>()
+  const byProject = new Map<string, TaskListItemDto[]>()
   projectIds.forEach((projectId, index) => {
     const rows = queries[index]?.data?.rows
     if (rows)

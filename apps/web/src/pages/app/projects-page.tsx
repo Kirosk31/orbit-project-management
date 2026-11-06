@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createProjectSchema } from '@orbit/shared'
-import type { TaskDto } from '@orbit/shared'
+import type { TaskListItemDto } from '@orbit/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { PlusIcon, StarIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -255,7 +255,7 @@ function ProjectProgress({
   tasks,
 }: {
   name: string
-  tasks: TaskDto[] | undefined
+  tasks: TaskListItemDto[] | undefined
 }): ReactNode {
   const { t } = useTranslation()
   if (!tasks) return <Skeleton className="hidden h-4 w-40 sm:block" />
