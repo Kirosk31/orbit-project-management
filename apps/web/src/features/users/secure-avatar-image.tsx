@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import type { ComponentProps, ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 
@@ -9,34 +10,34 @@ export interface SecureAvatarImageProps extends Omit<ComponentProps<typeof Avata
   userId: string
 }
 
+/**
+ * Avatars need the session cookie, so they load as blobs. The blob is cached
+ * per user and avatar version: thirty cards by one person cost one request.
+ */
 export function SecureAvatarImage({
   avatarKey,
   userId,
   ...props
 }: SecureAvatarImageProps): ReactNode {
+  const { data: blob } = useQuery({
+    queryKey: ['avatar', userId, avatarKey],
+    queryFn: ({ signal }) => getAvatarRequest(userId, signal),
+    enabled: Boolean(avatarKey),
+    staleTime: Infinity,
+    gcTime: 30 * 60_000,
+    retry: false,
+  })
   const [objectUrl, setObjectUrl] = useState<string>()
 
   useEffect(() => {
-    const controller = new AbortController()
-    let currentObjectUrl: string | undefined
-
-    if (avatarKey) {
-      void getAvatarRequest(userId, controller.signal)
-        .then((blob) => {
-          if (controller.signal.aborted) return
-          currentObjectUrl = URL.createObjectURL(blob)
-          setObjectUrl(currentObjectUrl)
-        })
-        .catch(() => {
-          if (!controller.signal.aborted) setObjectUrl(undefined)
-        })
+    if (!blob) {
+      setObjectUrl(undefined)
+      return
     }
-
-    return () => {
-      controller.abort()
-      if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl)
-    }
-  }, [avatarKey, userId])
+    const url = URL.createObjectURL(blob)
+    setObjectUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [blob])
 
   if (!avatarKey || !objectUrl) return null
   return <AvatarImage {...props} src={objectUrl} />

@@ -71,7 +71,7 @@ import {
 } from '@/features/boards/board-api'
 import {
   createTaskRequest,
-  listBoardTasksRequest,
+  listAllBoardTasksRequest,
   moveTaskRequest,
 } from '@/features/tasks/task-api'
 import {
@@ -134,13 +134,13 @@ export function BoardDetailPage(): ReactNode {
   const columnsQuery = useQuery({
     queryKey: ['board-columns', boardId],
     queryFn: () => listColumnsRequest(boardId),
-    enabled: board !== undefined,
+    enabled: boardId !== '',
   })
 
   const tasksQuery = useQuery({
     queryKey: ['board-tasks', boardId, taskFilters],
-    queryFn: () => listBoardTasksRequest(boardId, taskFilters),
-    enabled: board !== undefined,
+    queryFn: () => listAllBoardTasksRequest(boardId, taskFilters),
+    enabled: boardId !== '',
   })
 
   const invalidate = () => {

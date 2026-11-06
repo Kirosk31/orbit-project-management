@@ -178,7 +178,7 @@ export function TaskDetailPage(): ReactNode {
   const activityQuery = useQuery({
     queryKey: ['task-activity', taskId],
     queryFn: () => listTaskActivityRequest(taskId),
-    enabled: task !== undefined,
+    enabled: taskId !== '',
   })
 
   const invalidate = () => {

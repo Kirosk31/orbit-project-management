@@ -10,7 +10,8 @@ export function createQueryClient(): QueryClient {
           if (error instanceof Error && error.name === 'AbortError') return false
           return failureCount < 1
         },
-        refetchOnWindowFocus: 'always',
+        // Refetch on focus only once data is stale, not on every tab switch.
+        refetchOnWindowFocus: true,
       },
       mutations: {
         retry: false,

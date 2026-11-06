@@ -99,13 +99,13 @@ export function ProjectDetailPage(): ReactNode {
   const membersQuery = useQuery({
     queryKey: ['project-members', id],
     queryFn: () => listProjectMembersRequest(id),
-    enabled: project !== undefined,
+    enabled: id !== '',
   })
 
   const activityQuery = useQuery({
     queryKey: ['project-activity', id],
     queryFn: () => listProjectActivityRequest(id),
-    enabled: project !== undefined,
+    enabled: id !== '',
   })
 
   const orgMembersQuery = useQuery({
@@ -117,7 +117,7 @@ export function ProjectDetailPage(): ReactNode {
   const boardsQuery = useQuery({
     queryKey: ['project-boards', id],
     queryFn: () => listBoardsRequest(id),
-    enabled: project !== undefined,
+    enabled: id !== '',
   })
 
   const createBoardForm = useForm<

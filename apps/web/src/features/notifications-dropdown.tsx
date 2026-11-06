@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BellIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -24,6 +24,8 @@ export function NotificationsDropdown(): React.ReactElement {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
+  const [open, setOpen] = useState(false)
+
   const countQuery = useQuery({
     queryKey: ['notifications', 'count'],
     queryFn: () => countUnreadRequest(),
@@ -33,7 +35,7 @@ export function NotificationsDropdown(): React.ReactElement {
   const listQuery = useQuery({
     queryKey: ['notifications', 'list'],
     queryFn: () => listNotificationsRequest(1, 20, false),
-    enabled: true,
+    enabled: open,
   })
 
   const markRead = useMutation({
@@ -53,7 +55,7 @@ export function NotificationsDropdown(): React.ReactElement {
   const unreadCount = countQuery.data?.count ?? 0
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
